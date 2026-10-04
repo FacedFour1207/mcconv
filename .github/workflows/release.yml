@@ -1,0 +1,37 @@
+name: release
+
+# Push a tag such as v1.0.0 to build mcconv.exe and publish it on the
+# Releases page.
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: windows-latest
+    env:
+      GOEXPERIMENT: simd # SIMD bit packing (internal/bitpack)
+      CGO_ENABLED: "1"   # libdeflate (internal/deflate) needs the runner's gcc
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - run: gcc --version
+      - run: go vet ./...
+      - run: go test ./...
+      - name: Build
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force dist/mcconv | Out-Null
+          go build -trimpath -ldflags "-H windowsgui -s -w -extldflags=-static" -o dist/mcconv/mcconv.exe ./cmd/mcconv
+          Copy-Item README.md, LICENSE, THIRD_PARTY_NOTICES.md dist/mcconv/
+          Compress-Archive -Path dist/mcconv/* -DestinationPath dist/mcconv-windows-x64.zip
+      - name: Publish
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release create "${{ github.ref_name }}" dist/mcconv-windows-x64.zip --title "mcconv ${{ github.ref_name }}" --generate-notes

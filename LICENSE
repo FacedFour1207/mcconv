@@ -1,0 +1,117 @@
+mcconv License
+
+Copyright (c) 2026 FacedFour1207. All rights reserved.
+https://github.com/FacedFour1207/mcconv
+
+(日本語訳は下にあります。英語版と日本語版の内容に違いがある場合は、日本語版を優先します。)
+
+-------------------------------------------------------------------------------
+English
+-------------------------------------------------------------------------------
+
+This license covers mcconv, including its source code, executables and
+documentation (the "Software"), except for the third-party components listed
+in THIRD_PARTY_NOTICES.md, which remain under their own licenses.
+
+1. Use
+   You may download and use the Software free of charge for any purpose,
+   including commercial purposes (for example, converting worlds for a paid
+   server, a commissioned project or monetized videos).
+
+2. No modification
+   You may not modify, translate, decompile, disassemble or otherwise reverse
+   engineer the Software, or create derivative works based on it, except as
+   permitted by applicable law. You may, however, propose changes to the
+   official repository through issues or pull requests.
+
+3. No redistribution
+   You may not redistribute, re-upload, sell, rent or sublicense the Software
+   or any part of it, whether modified or not, including by bundling it with
+   other software or hosting it on other websites. To share the Software,
+   link to the official repository above. Forking the repository on GitHub,
+   to the extent required by GitHub's Terms of Service, is not prohibited by
+   this section, but any other use of a fork is subject to this license.
+
+4. Credit (optional)
+   Credit is not required. If you publish worlds converted with the Software
+   or content in which it is used (such as videos, articles or server pages),
+   a credit like the following is appreciated:
+
+       World converted with mcconv by FacedFour1207
+       https://github.com/FacedFour1207/mcconv
+
+5. Your worlds
+   The Software does not claim any rights to the worlds you convert with it.
+
+6. Termination
+   If you breach this license, your rights under it end automatically.
+
+7. No warranty
+   THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+   IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+   FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+   AUTHOR BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, INCLUDING LOSS
+   OR CORRUPTION OF WORLD DATA, ARISING FROM, OUT OF OR IN CONNECTION WITH
+   THE SOFTWARE OR ITS USE. Always keep a backup of your worlds.
+
+8. Minecraft
+   mcconv is not an official Minecraft product and is not approved by or
+   associated with Mojang or Microsoft.
+
+For permissions beyond this license, contact the author through the official
+repository.
+
+-------------------------------------------------------------------------------
+日本語
+-------------------------------------------------------------------------------
+
+このライセンスは、mcconv のソースコード、実行ファイル、説明書など(以下「本ソフ
+トウェア」)に適用されます。ただし、THIRD_PARTY_NOTICES.md に記載したほかの人の
+ライブラリやデータは、それぞれのライセンスに従います。
+
+1. 使用
+   本ソフトウェアは、無料でダウンロードして、どんな目的にも使えます。営利目的
+   (有料サーバー用のワールド変換、依頼を受けての制作、収益化した動画など)でも
+   使えます。
+
+2. 改造の禁止
+   法律で認められる場合を除き、本ソフトウェアの改造、翻訳、逆コンパイル、逆ア
+   センブルなどの解析、および本ソフトウェアをもとにした派生物の作成を禁止しま
+   す。ただし、公式リポジトリへの Issue や Pull Request で変更を提案することは
+   できます。
+
+3. 再配布の禁止
+   本ソフトウェアの全部または一部を、改造の有無にかかわらず、再配布、再アップ
+   ロード、販売、貸与、再許諾することを禁止します。ほかのソフトウェアに同梱する
+   ことや、ほかのサイトに置くことも含みます。紹介するときは、上記の公式リポジト
+   リへのリンクを使ってください。なお、GitHub の利用規約で認められている範囲で
+   GitHub 上でリポジトリを fork することは、この項では禁止しません。ただし、
+   fork したものの使い方はこのライセンスに従います。
+
+4. クレジット表記(任意)
+   クレジットの表記は必須ではありません。本ソフトウェアで変換したワールドや、
+   本ソフトウェアを使ったコンテンツ(動画、記事、サーバーの紹介ページなど)を公開
+   するときに、次のように書いてもらえるとうれしいです。
+
+       ワールド変換: mcconv by FacedFour1207
+       https://github.com/FacedFour1207/mcconv
+
+5. 変換したワールド
+   変換したワールドについて、本ソフトウェアの作者は権利を主張しません。
+
+6. 終了
+   このライセンスに違反した場合、このライセンスによる権利は自動的に失われます。
+
+7. 無保証
+   本ソフトウェアは「現状のまま」提供され、明示・黙示を問わず、商品性、特定の
+   目的への適合性、権利の非侵害を含むいかなる保証もありません。ワールドデータの
+   消失や破損を含め、本ソフトウェアやその使用によって生じたいかなる請求、損害、
+   その他の責任についても、作者は責任を負いません。変換する前に、必ずワールドの
+   バックアップを取ってください。
+
+8. Minecraft について
+   mcconv は Minecraft の公式製品ではなく、Mojang および Microsoft が承認したも
+   のでも、関係するものでもありません。
+
+このライセンスを超える許可が必要な場合は、公式リポジトリから作者に連絡してくだ
+さい。

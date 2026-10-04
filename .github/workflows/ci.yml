@@ -1,0 +1,22 @@
+name: ci
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: windows-latest
+    env:
+      GOEXPERIMENT: simd # SIMD bit packing (internal/bitpack)
+      CGO_ENABLED: "1"   # libdeflate (internal/deflate) needs the runner's gcc
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - run: gcc --version
+      - run: go vet ./...
+      - run: go test ./...
+      - run: go build -trimpath -ldflags "-H windowsgui -s -w -extldflags=-static" -o mcconv.exe ./cmd/mcconv

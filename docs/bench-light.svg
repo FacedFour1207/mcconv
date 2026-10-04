@@ -1,0 +1,28 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="760" height="252" viewBox="0 0 760 252" role="img" aria-labelledby="t d">
+<title id="t">同じワールドの変換時間: mcconv と Amulet</title>
+<desc id="d">Java版 → 統合版: Amulet 17.0 秒、mcconv 0.10 秒。統合版 → Java版: Amulet 14.5 秒、mcconv 0.11 秒 (テストワールド 734 チャンク)</desc>
+<style>text{font-family:system-ui,-apple-system,"Segoe UI","Yu Gothic UI","Hiragino Sans",sans-serif}</style>
+<rect width="100%" height="100%" rx="12" fill="#fcfcfb"/>
+<text x="24" y="34" font-size="17" font-weight="600" fill="#0b0b0b">同じワールドの変換にかかった時間</text>
+<text x="24" y="55" font-size="12.5" fill="#52514e">テストワールド (Java 26.2, 734 チャンク) · 短いほど速い</text>
+<rect x="520" y="26" width="12" height="12" rx="3" fill="#2a78d6"/><text x="538" y="36.5" font-size="13" fill="#0b0b0b">mcconv</text>
+<rect x="630" y="26" width="12" height="12" rx="3" fill="#eb6834"/><text x="648" y="36.5" font-size="13" fill="#0b0b0b">Amulet</text>
+<line x1="150.0" y1="68.0" x2="150.0" y2="218.0" stroke="#c3c2b7" stroke-width="1"/>
+<text x="150.0" y="234.0" font-size="11.5" fill="#898781" text-anchor="middle">0 秒</text>
+<line x1="275.0" y1="68.0" x2="275.0" y2="218.0" stroke="#e1e0d9" stroke-width="1"/>
+<text x="275.0" y="234.0" font-size="11.5" fill="#898781" text-anchor="middle">5 秒</text>
+<line x1="400.0" y1="68.0" x2="400.0" y2="218.0" stroke="#e1e0d9" stroke-width="1"/>
+<text x="400.0" y="234.0" font-size="11.5" fill="#898781" text-anchor="middle">10 秒</text>
+<line x1="525.0" y1="68.0" x2="525.0" y2="218.0" stroke="#e1e0d9" stroke-width="1"/>
+<text x="525.0" y="234.0" font-size="11.5" fill="#898781" text-anchor="middle">15 秒</text>
+<text x="24" y="104.0" font-size="13.5" font-weight="600" fill="#0b0b0b">Java版 → 統合版</text>
+<path d="M150.0 78.0 H151.5 a1.5 1.5 0 0 1 1.5 1.5 V96.5 a1.5 1.5 0 0 1 -1.5 1.5 H150.0 Z" fill="#2a78d6"/>
+<text x="162.6" y="92.5" font-size="13" font-weight="700" fill="#0b0b0b">0.10 秒 <tspan font-weight="400" fill="#52514e">— Amulet の約 163 倍速</tspan></text>
+<path d="M150.0 100.0 H571.0 a4.0 4.0 0 0 1 4.0 4.0 V116.0 a4.0 4.0 0 0 1 -4.0 4.0 H150.0 Z" fill="#eb6834"/>
+<text x="583.0" y="114.5" font-size="13" fill="#52514e">17.0 秒</text>
+<text x="24" y="176.0" font-size="13.5" font-weight="600" fill="#0b0b0b">統合版 → Java版</text>
+<path d="M150.0 150.0 H151.5 a1.5 1.5 0 0 1 1.5 1.5 V168.5 a1.5 1.5 0 0 1 -1.5 1.5 H150.0 Z" fill="#2a78d6"/>
+<text x="162.8" y="164.5" font-size="13" font-weight="700" fill="#0b0b0b">0.11 秒 <tspan font-weight="400" fill="#52514e">— Amulet の約 131 倍速</tspan></text>
+<path d="M150.0 172.0 H508.5 a4.0 4.0 0 0 1 4.0 4.0 V188.0 a4.0 4.0 0 0 1 -4.0 4.0 H150.0 Z" fill="#eb6834"/>
+<text x="520.5" y="186.5" font-size="13" fill="#52514e">14.5 秒</text>
+</svg>

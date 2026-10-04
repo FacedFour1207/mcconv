@@ -1,0 +1,33 @@
+# Build output
+/mcconv.exe
+/mcconv
+/dist/
+*.exe
+*.test
+
+# Data written next to the executable at run time (update-data, settings)
+/mcconv-data/
+
+# Local worlds and reference material (not part of the project; worlds can
+# be huge and may contain personal data)
+/test world(BE)/
+/test world(JE)/
+/earth_1-500/
+/earth_1-500_osm-based_with-features_1-19-4/
+/Amulet-Map-Editor-0.10.64/
+/_legacy/
+
+# Profiles, traces, logs
+*.prof
+*.pprof
+*.trace
+*.log
+*.tmp
+
+# OS and editor files
+.DS_Store
+Thumbs.db
+desktop.ini
+.vscode/
+.idea/
+*.swp
