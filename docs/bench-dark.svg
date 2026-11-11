@@ -1,5 +1,5 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="760" height="252" viewBox="0 0 760 252" role="img" aria-labelledby="t d">
-<title id="t">同じワールドの変換時間: mcconv と Amulet</title>
+<title id="t">同じワールドの変換にかかった時間: mcconv / Amulet</title>
 <desc id="d">Java版 → 統合版: Amulet 17.0 秒、mcconv 0.10 秒。統合版 → Java版: Amulet 14.5 秒、mcconv 0.11 秒 (テストワールド 734 チャンク)</desc>
 <style>text{font-family:system-ui,-apple-system,"Segoe UI","Yu Gothic UI","Hiragino Sans",sans-serif}</style>
 <rect width="100%" height="100%" rx="12" fill="#1a1a19"/>

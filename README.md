@@ -1,5 +1,7 @@
 # mcconv — Minecraft Java版 ⇔ 統合版 ワールド変換
 
+**日本語** | [English](README.en.md)
+
 Minecraft の **Java版のワールドを統合版 (Bedrock) に**、**統合版のワールドを Java版に** 変換するツールです。
 ダブルクリックで開く画面から、ワールドを選んでボタンを押すだけで変換できます。
 

@@ -28,7 +28,7 @@ jobs:
         run: |
           New-Item -ItemType Directory -Force dist/mcconv | Out-Null
           go build -trimpath -ldflags "-H windowsgui -s -w -extldflags=-static" -o dist/mcconv/mcconv.exe ./cmd/mcconv
-          Copy-Item README.md, LICENSE, THIRD_PARTY_NOTICES.md dist/mcconv/
+          Copy-Item README.md, README.en.md, LICENSE, THIRD_PARTY_NOTICES.md dist/mcconv/
           Compress-Archive -Path dist/mcconv/* -DestinationPath dist/mcconv-windows-x64.zip
       - name: Publish
         shell: pwsh

@@ -1,16 +1,22 @@
 # Third-party notices
 
+The mcconv executable contains the libraries and data listed below. All of them are under licenses that allow distribution.
+This file must be included with the executable.
+
 mcconv の実行ファイルには、以下のライブラリとデータが含まれます。いずれも配布可能なライセンスです。
 配布するときは、このファイルを実行ファイルと一緒に含めてください。
 
-## データ
+## Data / データ
 
-| データ | 提供元 | ライセンス |
+| Data / データ | Source / 提供元 | License / ライセンス |
 |---|---|---|
-| Java ⇔ 統合版のブロック・アイテム・バイオーム対応表 | [GeyserMC/mappings](https://github.com/GeyserMC/mappings) | MIT (全文は下記) |
-| 統合版のバイオーム ID・旗の模様コード・エンティティ ID | [pmmp/BedrockData](https://github.com/pmmp/BedrockData) | CC0 1.0 (パブリックドメイン) |
-| 統合版の古いブロック状態を更新するスキーマ | [BedrockBlockUpgradeSchema](https://github.com/opencollab-incubator/BedrockBlockUpgradeSchema) | CC0 1.0 (パブリックドメイン) |
-| Java版のブロック状態一覧 | Minecraft 自身のデータジェネレーター (`--reports`) の出力 | — |
+| Java ⇔ Bedrock block, item and biome mappings / Java ⇔ 統合版のブロック・アイテム・バイオーム対応表 | [GeyserMC/mappings](https://github.com/GeyserMC/mappings) | MIT (full text below / 全文は下記) |
+| Bedrock biome IDs, banner pattern codes, entity IDs / 統合版のバイオーム ID・旗の模様コード・エンティティ ID | [pmmp/BedrockData](https://github.com/pmmp/BedrockData) | CC0 1.0 (public domain / パブリックドメイン) |
+| Schema for upgrading old Bedrock block states / 統合版の古いブロック状態を更新するスキーマ | [BedrockBlockUpgradeSchema](https://github.com/opencollab-incubator/BedrockBlockUpgradeSchema) | CC0 1.0 (public domain / パブリックドメイン) |
+| Java block state list / Java版のブロック状態一覧 | Output of Minecraft's own data generator (`--reports`) / Minecraft 自身のデータジェネレーターの出力 | — |
+
+Game data such as block and item names are the work of Mojang. GeyserMC states that it does not relicense them, and neither does mcconv.
+No files of the game itself (textures, behavior packs, etc.) are bundled. Bedrock entity definitions are read from the installed game at run time.
 
 ブロック・アイテムの名前などのゲームデータは Mojang の著作物です。GeyserMC はそれらを再ライセンスしていない旨を明記しており、mcconv も同様です。
 Minecraft のゲーム本体のファイル (テクスチャ、行動パック等) は同梱していません。統合版エンティティの定義は、実行時にインストール済みのゲームから読み込みます。
@@ -43,11 +49,11 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 ```
 
-## ライブラリ
+## Libraries / ライブラリ
 
 ### github.com/klauspost/compress v1.20.1
 
-(mcconv は flate / zlib パッケージのみ使用)
+(only the flate / zlib packages are used / mcconv は flate / zlib パッケージのみ使用)
 
 ```
 Copyright (c) 2012 The Go Authors. All rights reserved.
@@ -358,7 +364,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 ### github.com/jchv/go-webview2
 
-(GUI ウィンドウ)
+(GUI window / GUI ウィンドウ)
 
 ```
 MIT License
@@ -386,7 +392,7 @@ SOFTWARE.
 
 ```
 
-### WebView2 SDK (WebView2Loader.dll, go-webview2 に同梱)
+### WebView2 SDK (WebView2Loader.dll, bundled with go-webview2 / go-webview2 に同梱)
 
 Microsoft Corporation
 
@@ -472,7 +478,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 ### libdeflate v1.26
 
-(zlib / deflate の展開と圧縮。ソースは internal/deflate/libdeflate)
+(zlib / deflate decompression and compression; source in internal/deflate/libdeflate / zlib / deflate の展開と圧縮。ソースは internal/deflate/libdeflate)
 
 ```
 Copyright 2016 Eric Biggers

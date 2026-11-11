@@ -16,6 +16,8 @@
 /earth_1-500_osm-based_with-features_1-19-4/
 /Amulet-Map-Editor-0.10.64/
 /_legacy/
+/Earth24kBedrock/
+*.zip
 
 # Profiles, traces, logs
 *.prof
