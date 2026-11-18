@@ -3,6 +3,8 @@ package translate
 import (
 	"slices"
 	"testing"
+
+	"mcconv/internal/nbt"
 )
 
 func TestJavaTargetBlocks(t *testing.T) {
@@ -110,4 +112,17 @@ func testTables(t *testing.T) *Tables {
 		t.Fatal(err)
 	}
 	return tb
+}
+
+func TestMixedTextList(t *testing.T) {
+	// 1.21.5+ stores strings in lists of compounds as {"": "..."}
+	if got := JavaTextToSection(nbt.Compound{"": "first line"}); got != "first line" {
+		t.Errorf("got %q", got)
+	}
+	if got := JavaTextToJSON(nbt.Compound{"text": "a", "color": "red", "bold": int8(1)}); got != `{"bold":true,"color":"red","text":"a"}` {
+		t.Errorf("json %s", got)
+	}
+	if got := JavaTextToJSON("plain"); got != `"plain"` {
+		t.Errorf("json %s", got)
+	}
 }

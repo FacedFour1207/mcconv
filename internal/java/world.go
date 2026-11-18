@@ -472,6 +472,7 @@ func (w *World) writeLegacyLevel(info *world.LevelInfo) error {
 		"thunderTime":      info.ThunderTime,
 		"clearWeatherTime": int32(0),
 		"WorldGenSettings": wgs,
+		"DragonFight":      nbt.Compound{}, // the game fills in the defaults
 		"DataPacks": nbt.Compound{
 			"Enabled":  nbt.NewList("vanilla"),
 			"Disabled": &nbt.List{Type: nbt.TagString},

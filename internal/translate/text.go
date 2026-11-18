@@ -122,6 +122,10 @@ func renderText(out *strings.Builder, cur *style, parent style, v any) {
 	case nbt.Compound:
 		st := styleOf(t, parent)
 		text, _ := t.String("text")
+		if s, ok := t.String(""); ok && text == "" {
+			// a plain string in a list that also holds compounds (1.21.5+ NBT)
+			text = s
+		}
 		if text == "" {
 			if tr, ok := t.String("translate"); ok {
 				text = tr
