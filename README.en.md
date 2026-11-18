@@ -38,9 +38,15 @@ For Java Edition, launch that version once in the official launcher first.
 
 | | Supported |
 |---|---|
-| Worlds written | Java 26.2 / Bedrock 1.26.50 (newer game versions open them as usual) |
+| Worlds written | Java 26.2 (1.21.1 to 26.1 can be chosen in the settings) / Bedrock 1.26.50 (newer game versions open them as usual) |
 | Worlds read | Java 1.18 or later / Bedrock 1.18 or later |
 | OS | Windows 10 / 11 (the window uses WebView2, which is built into Windows 11) |
+
+### Writing older Java versions
+
+When converting Bedrock → Java, older versions such as 1.21.1 can be chosen under "Java" in the settings (gear icon), or with `-java-version 1.21.1` on the command line.
+Blocks, items and biomes that version does not have are replaced with similar ones (for example pale oak → dark oak, pale garden → dark forest), and the replaced blocks are listed after the conversion. Entities that version does not have are not converted.
+Sign text, item names, equipment, boats, furnaces, level.dat and the folder layout are written in that version's format too.
 
 ## What is converted
 
@@ -74,6 +80,7 @@ The edition of the input is detected automatically and it is converted to the ot
 | `-compression -2..9` | Output compression level (default 1; 0 = no compression) |
 | `-all-chunks` | Also convert chunks that are not fully generated |
 | `-v` | Show the time taken by each step |
+| `-java-version 1.21.1` | Java version to write (1.21.1 or later; default: the settings, else 26.2) |
 | `-data DIR` | Folder for settings and updated data (default: `mcconv-data` next to the exe) |
 
 ### Settings files (mcconv-data folder)
@@ -187,6 +194,7 @@ The built-in mapping tables (`internal/translate/data/tables.json.gz`) are made 
 | Bedrock biome IDs, banner patterns, entity IDs | [pmmp/BedrockData](https://github.com/pmmp/BedrockData) | CC0 |
 | Upgrade rules for old Bedrock block states | [BedrockBlockUpgradeSchema](https://github.com/opencollab-incubator/BedrockBlockUpgradeSchema) | CC0 |
 | Java block state list | Minecraft's data generator | — |
+| Blocks, items, biomes and entities of older Java versions (1.21.1 to 26.1) | [PrismarineJS/minecraft-data](https://github.com/PrismarineJS/minecraft-data) | MIT |
 
 Bedrock entity definitions are not bundled; they are read from the installed Bedrock Edition at run time.
 

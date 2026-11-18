@@ -17,6 +17,9 @@ import (
 type Codec struct {
 	// DataVersion written to chunks.
 	DataVersion int32
+	// Target converts blocks and biomes for an older release when encoding
+	// (nil: the tables' version).
+	Target *translate.JavaTarget
 
 	intern sync.Map // raw palette key -> *translate.Block (shared between chunks)
 }
@@ -277,6 +280,7 @@ func (c *Codec) EncodeChunk(ch *world.Chunk) nbt.Compound {
 	canon := make([]uint32, len(ch.Palette))
 	first := map[*translate.Block]uint32{}
 	for i, b := range ch.Palette {
+		b = c.Target.Block(b)
 		if j, ok := first[b]; ok {
 			canon[i] = j
 			continue

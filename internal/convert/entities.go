@@ -83,6 +83,17 @@ type entityConverter struct {
 	items   *itemConverter
 	count   atomic.Int64
 	uid     atomic.Uint32
+	jf      *javaFormat // Bedrock -> Java: the target release
+}
+
+// setBlockPos stores the block position of a hanging entity (painting,
+// item frame).
+func (ec *entityConverter) setBlockPos(e nbt.Compound, p []int32) {
+	if ec.jf.older(dvBlockPos) {
+		e["TileX"], e["TileY"], e["TileZ"] = p[0], p[1], p[2]
+		return
+	}
+	e["block_pos"] = p
 }
 
 func newEntityConverter(data *translate.Tables, items *itemConverter, bc *blockConverter) *entityConverter {
@@ -198,6 +209,11 @@ func (ec *entityConverter) javaEntity(e nbt.Compound, out *world.Chunk) []nbt.Co
 	variant := int32(-1)
 	chestItems := false
 	switch {
+	case id == "boat" || id == "chest_boat": // before 1.21.2: the wood is a field
+		wood, _ := e.String("Type")
+		variant = max(int32(indexOf(boatWoods, wood)), 0)
+		beID = id
+		chestItems = id == "chest_boat"
 	case strings.HasSuffix(id, "_chest_boat") || strings.HasSuffix(id, "_chest_raft"):
 		variant = int32(indexOf(boatWoods, strings.TrimSuffix(strings.TrimSuffix(id, "_chest_boat"), "_chest_raft")))
 		beID = "chest_boat"
@@ -587,14 +603,14 @@ func (ec *entityConverter) bedrockToJava(src *bedrock.World, rc *bedrock.RawChun
 		}
 		dx, dy, dz := facingVec(int(facing))
 		e := nbt.Compound{
-			"id":        id,
-			"Pos":       doubleList(float64(pos.X)+0.5-float64(dx)*0.46875, float64(pos.Y)+0.5-float64(dy)*0.46875, float64(pos.Z)+0.5-float64(dz)*0.46875),
-			"Motion":    doubleList(0, 0, 0),
-			"Rotation":  floatList(0, 0),
-			"block_pos": []int32{pos.X, pos.Y, pos.Z},
-			"Facing":    int8(facing),
-			"UUID":      uuidFromSeed(int64(pos.X)<<40 ^ int64(pos.Y)<<20 ^ int64(pos.Z)),
+			"id":       id,
+			"Pos":      doubleList(float64(pos.X)+0.5-float64(dx)*0.46875, float64(pos.Y)+0.5-float64(dy)*0.46875, float64(pos.Z)+0.5-float64(dz)*0.46875),
+			"Motion":   doubleList(0, 0, 0),
+			"Rotation": floatList(0, 0),
+			"Facing":   int8(facing),
+			"UUID":     uuidFromSeed(int64(pos.X)<<40 ^ int64(pos.Y)<<20 ^ int64(pos.Z)),
 		}
+		ec.setBlockPos(e, []int32{pos.X, pos.Y, pos.Z})
 		if item, ok := be.NBT.Compound("Item"); ok {
 			if conv := ec.items.convert(item); conv != nil {
 				delete(conv, "Slot")
@@ -673,6 +689,7 @@ func (ec *entityConverter) bedrockEntity(a nbt.Compound) nbt.Compound {
 		id = j
 	}
 	variant, _ := a.Number("Variant")
+	boatType := ""
 	switch ident {
 	case "boat", "chest_boat":
 		wood := "oak"
@@ -687,6 +704,17 @@ func (ec *entityConverter) bedrockEntity(a nbt.Compound) nbt.Compound {
 			kind = "_chest" + kind
 		}
 		id = wood + kind
+		if ec.jf.older(dvBoatSplit) { // one boat entity with a wood type
+			id, boatType = ident, wood
+			if wood == "pale_oak" {
+				boatType = "oak"
+			}
+		} else if !ec.jf.entity("minecraft:" + id) {
+			id = strings.Replace(id, "pale_oak", "dark_oak", 1)
+		}
+	}
+	if !ec.jf.entity("minecraft:" + id) {
+		return nil // the target release has no such entity
 	}
 	if ident != "item" && ident != "painting" && ident != "falling_block" && ident != "xp_orb" &&
 		ident != "boat" && ident != "chest_boat" && ident != "leash_knot" {
@@ -710,6 +738,9 @@ func (ec *entityConverter) bedrockEntity(a nbt.Compound) nbt.Compound {
 		"Motion":   doubleList(motion...),
 		"UUID":     uuidFromSeed(uid),
 	}
+	if boatType != "" {
+		e["Type"] = boatType
+	}
 	for _, k := range []string{"OnGround", "Invulnerable", "CustomNameVisible", "Silent", "NoGravity"} {
 		if v, ok := a.Byte(k); ok {
 			e[k] = v
@@ -722,10 +753,14 @@ func (ec *entityConverter) bedrockEntity(a nbt.Compound) nbt.Compound {
 		e["Air"] = int16(v)
 	}
 	if v, ok := nbt.AsFloat(a["FallDistance"]); ok {
-		e["fall_distance"] = v
+		if ec.jf.older(dvFallDistance) {
+			e["FallDistance"] = float32(v)
+		} else {
+			e["fall_distance"] = v
+		}
 	}
 	if s, ok := a.String("CustomName"); ok && s != "" {
-		e["CustomName"] = translate.SectionToJavaText(s)
+		e["CustomName"] = ec.jf.text(translate.SectionToJavaText(s))
 	}
 	if t, ok := a.List("Tags"); ok && len(t.Items) > 0 {
 		e["Tags"] = nbt.Clone(t)
@@ -764,7 +799,16 @@ func (ec *entityConverter) bedrockEntity(a nbt.Compound) nbt.Compound {
 			eq["offhand"] = it
 		}
 	}
-	if len(eq) > 0 {
+	if len(eq) > 0 && ec.jf.older(dvEquipment) {
+		slot := func(k string) any {
+			if it, ok := eq[k]; ok {
+				return it
+			}
+			return nbt.Compound{}
+		}
+		e["ArmorItems"] = nbt.NewList(slot("feet"), slot("legs"), slot("chest"), slot("head"))
+		e["HandItems"] = nbt.NewList(slot("mainhand"), slot("offhand"))
+	} else if len(eq) > 0 {
 		e["equipment"] = eq
 	}
 	switch ident {
@@ -799,7 +843,7 @@ func (ec *entityConverter) bedrockEntity(a nbt.Compound) nbt.Compound {
 		e["variant"] = "minecraft:" + snakeCase(motif)
 		e["facing"] = int8(dir)
 		w, h := paintingSize(snakeCase(motif))
-		e["block_pos"] = paintingBlockPos(pos, int(dir), w, h)
+		ec.setBlockPos(e, paintingBlockPos(pos, int(dir), w, h))
 	case "falling_block":
 		if fb, ok := a.Compound("FallingBlock"); ok {
 			name, _ := fb.String("name")
@@ -814,13 +858,14 @@ func (ec *entityConverter) bedrockEntity(a nbt.Compound) nbt.Compound {
 				fbb.Version = int32(v)
 			}
 			if b := ec.bc.lookup(fbb); b != nil && b.out != nil {
+				jb := ec.jf.block(b.out)
 				pp := nbt.Compound{}
-				for k, v := range b.out.Props {
+				for k, v := range jb.Props {
 					if s, ok := v.(string); ok {
 						pp[k] = s
 					}
 				}
-				bs := nbt.Compound{"Name": b.out.Name()}
+				bs := nbt.Compound{"Name": jb.Name()}
 				if len(pp) > 0 {
 					bs["Properties"] = pp
 				}

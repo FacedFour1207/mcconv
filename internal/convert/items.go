@@ -55,6 +55,7 @@ var (
 type itemConverter struct {
 	t         *translate.Tables
 	toBedrock bool
+	jf        *javaFormat // Bedrock -> Java: the target release
 }
 
 // bedrockBlockFor returns the Bedrock block a Java block item places, or nil
@@ -346,11 +347,15 @@ func (ic *itemConverter) bedrockToJava(item nbt.Compound) nbt.Compound {
 		if id == "enchanted_book" {
 			key = "minecraft:stored_enchantments"
 		}
-		comps[key] = levels
+		if ic.jf.older(dvTooltipDisplay) {
+			comps[key] = nbt.Compound{"levels": levels}
+		} else {
+			comps[key] = levels
+		}
 	}
 	if disp, ok := tag.Compound("display"); ok {
 		if n, ok := disp.String("Name"); ok && n != "" {
-			comps["minecraft:custom_name"] = translate.SectionToJavaText(n)
+			comps["minecraft:custom_name"] = ic.jf.text(translate.SectionToJavaText(n))
 		}
 		if l, ok := disp.List("Lore"); ok && len(l.Items) > 0 {
 			var lines []any
@@ -364,7 +369,11 @@ func (ic *itemConverter) bedrockToJava(item nbt.Compound) nbt.Compound {
 				lines = append(lines, v)
 			}
 			lore := &nbt.List{Type: nbt.TagString, Items: lines}
-			if !allStrings {
+			if ic.jf.older(dvTextNBT) {
+				for i, v := range lines {
+					lines[i] = translate.JavaTextToJSON(v)
+				}
+			} else if !allStrings {
 				lore.Type = nbt.TagCompound
 				for i, v := range lines {
 					if s, ok := v.(string); ok {
@@ -376,7 +385,11 @@ func (ic *itemConverter) bedrockToJava(item nbt.Compound) nbt.Compound {
 		}
 	}
 	if c, ok := tag.Int("customColor"); ok {
-		comps["minecraft:dyed_color"] = c & 0xFFFFFF
+		if ic.jf.older(dvTooltipDisplay) {
+			comps["minecraft:dyed_color"] = nbt.Compound{"rgb": c & 0xFFFFFF}
+		} else {
+			comps["minecraft:dyed_color"] = c & 0xFFFFFF
+		}
 	}
 	if u, _ := tag.Byte("Unbreakable"); u != 0 {
 		comps["minecraft:unbreakable"] = nbt.Compound{}
@@ -402,7 +415,7 @@ func (ic *itemConverter) bedrockToJava(item nbt.Compound) nbt.Compound {
 			pc, _ := p.(nbt.Compound)
 			text, _ := pc.String("text")
 			if id == "written_book" {
-				pages.Items = append(pages.Items, nbt.Compound{"raw": translate.SectionToJavaText(text)})
+				pages.Items = append(pages.Items, nbt.Compound{"raw": ic.jf.text(translate.SectionToJavaText(text))})
 			} else {
 				pages.Items = append(pages.Items, nbt.Compound{"raw": text})
 			}
@@ -418,7 +431,11 @@ func (ic *itemConverter) bedrockToJava(item nbt.Compound) nbt.Compound {
 			comps["minecraft:writable_book_content"] = nbt.Compound{"pages": pages}
 		}
 	}
-	out := nbt.Compound{"id": "minecraft:" + id, "count": int32(count)}
+	full, ok := ic.jf.item("minecraft:" + id)
+	if !ok {
+		return nil // the target release has no such item
+	}
+	out := nbt.Compound{"id": full, "count": int32(count)}
 	if len(comps) > 0 {
 		out["components"] = comps
 	}

@@ -17,6 +17,7 @@ import (
 	"mcconv/internal/config"
 	"mcconv/internal/convert"
 	"mcconv/internal/gui"
+	"mcconv/internal/translate"
 	"mcconv/internal/update"
 	"mcconv/internal/world"
 )
@@ -49,6 +50,7 @@ func main() {
 		name       = flag.String("name", "", "name of the output world (default: the input world's name)")
 		jsonOut    = flag.Bool("progress-json", false, "report progress as JSON lines on stdout (used by the GUI)")
 		memMB      = flag.Int("mem", 0, "memory limit in MB (0 = none; lower uses less RAM but converts slower)")
+		javaVer    = flag.String("java-version", "", "Java version to write, 1.21.1 or newer (default: versions.json, else the tables' version)")
 	)
 	flag.Usage = func() {
 		fmt.Fprintf(os.Stderr, "usage: mcconv [options] <input world> <output world>\n")
@@ -107,6 +109,24 @@ func main() {
 	cfg, err := config.Load(*dataDir)
 	if err != nil {
 		fatal(err)
+	}
+	if *javaVer != "" {
+		if p, ok := cfg.File("tables.json.gz"); ok {
+			translate.SetDataFile(p)
+		}
+		t, err := translate.Load()
+		if err != nil {
+			fatal(err)
+		}
+		r, ok := t.JavaReleaseByName(*javaVer)
+		if !ok {
+			var names []string
+			for _, r := range t.JavaReleases() {
+				names = append(names, r.Name)
+			}
+			fatal(fmt.Errorf("unknown Java version %q (choose one of: %s)", *javaVer, strings.Join(names, ", ")))
+		}
+		cfg.Versions.JavaName, cfg.Versions.JavaDataVersion = r.Name, r.DataVersion
 	}
 	opts := convert.Options{
 		Config:            cfg,

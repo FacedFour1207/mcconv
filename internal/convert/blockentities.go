@@ -17,6 +17,7 @@ type beConverter struct {
 	t         *translate.Tables
 	items     *itemConverter
 	toBedrock bool
+	jf        *javaFormat // Bedrock -> Java: the target release
 }
 
 // Java block entity id -> Bedrock block entity id.
@@ -231,6 +232,10 @@ func (c *beConverter) toJavaBE(java *translate.Block, be *translate.BlockEntity)
 		id = "trapped_chest"
 	case id == "chest" && n != "chest" && !strings.HasSuffix(n, "copper_chest"):
 		return nil // block and block entity do not match
+	case id == "bed" && !c.jf.older(dvNoBedEntity):
+		return nil // beds have no block entity since 26.2
+	case !c.jf.keepBlockEntity(id, java):
+		return nil // the block was replaced for an older release
 	}
 	s := be.NBT
 	o := nbt.Compound{}
@@ -243,6 +248,12 @@ func (c *beConverter) toJavaBE(java *translate.Block, be *translate.BlockEntity)
 	case "skull":
 		// rotation lives in the block state (see skullRule)
 	case "furnace", "blast_furnace", "smoker":
+		if c.jf.older(dvFurnaceTimes) {
+			o["BurnTime"] = int16(firstNumber(s, "BurnTime"))
+			o["CookTime"] = int16(firstNumber(s, "CookTime"))
+			o["CookTimeTotal"] = int16(200)
+			break
+		}
 		o["lit_time_remaining"] = int32(firstNumber(s, "BurnTime"))
 		o["cooking_time_spent"] = int32(firstNumber(s, "CookTime"))
 		o["lit_total_time"] = int32(firstNumber(s, "BurnDuration"))
@@ -276,7 +287,9 @@ func (c *beConverter) toJavaBE(java *translate.Block, be *translate.BlockEntity)
 			if j, ok := bedrockToJavaEntityIDs[strip(id)]; ok {
 				id = "minecraft:" + j
 			}
-			o["SpawnData"] = nbt.Compound{"entity": nbt.Compound{"id": id}}
+			if c.jf.entity(id) {
+				o["SpawnData"] = nbt.Compound{"entity": nbt.Compound{"id": id}}
+			}
 		}
 	case "hopper":
 		copyNumbers(s, o, []string{"TransferCooldown"}, func(v int64) any { return int32(v) })
@@ -369,7 +382,7 @@ func (c *beConverter) common(s, o nbt.Compound) {
 				o["CustomName"] = txt
 			}
 		} else if str, ok := cn.(string); ok && str != "" {
-			o["CustomName"] = translate.SectionToJavaText(str)
+			o["CustomName"] = c.jf.text(translate.SectionToJavaText(str))
 		}
 	}
 }
@@ -495,7 +508,11 @@ func (c *beConverter) signToJava(s, o nbt.Compound) {
 			}
 			msgs.Items = append(msgs.Items, v)
 		}
-		if compound {
+		if c.jf.older(dvTextNBT) {
+			for i, v := range msgs.Items {
+				msgs.Items[i] = translate.JavaTextToJSON(v)
+			}
+		} else if compound {
 			msgs.Type = nbt.TagCompound
 			for i, v := range msgs.Items {
 				if str, ok := v.(string); ok {

@@ -3,6 +3,7 @@ package java
 import (
 	"bytes"
 	"compress/gzip"
+	"fmt"
 	"io"
 	"os"
 	"path/filepath"
@@ -52,12 +53,23 @@ func Open(dir string) (*World, error) {
 	return w, nil
 }
 
+// DataVersions where the saved format changed (from the game's data fixers).
+const (
+	dvSpawnCompound = 4548 // 1.21.9: level.dat "spawn" instead of SpawnX/Y/Z
+	dvGameRuleIDs   = 4658 // 1.21.11: "game_rules" with namespaced, typed values
+	dvLevelSplit    = 4772 // 26.1: dimensions/ layout, data/minecraft/*.dat files
+)
+
 // Create prepares an empty world directory using the 26.x layout.
-func Create(dir string) (*World, error) {
+func Create(dir string) (*World, error) { return CreateFor(dir, 0) }
+
+// CreateFor prepares an empty world directory with the layout of a Java
+// DataVersion (0 = the newest).
+func CreateFor(dir string, dataVersion int) (*World, error) {
 	if err := os.MkdirAll(dir, 0o755); err != nil {
 		return nil, err
 	}
-	return &World{Dir: dir, New26: true}, nil
+	return &World{Dir: dir, New26: dataVersion == 0 || dataVersion >= dvLevelSplit}, nil
 }
 
 func dimName(d world.Dimension) string {
@@ -306,8 +318,12 @@ func b8(v bool) int8 {
 	return 0
 }
 
-// WriteLevel writes level.dat and the 26.x data files.
+// WriteLevel writes level.dat and the 26.x data files (only level.dat for
+// versions before 26.1).
 func (w *World) WriteLevel(info *world.LevelInfo) error {
+	if !w.New26 {
+		return w.writeLegacyLevel(info)
+	}
 	diffNames := []string{"peaceful", "easy", "normal", "hard"}
 	diff := "normal"
 	if info.Difficulty >= 0 && int(info.Difficulty) < len(diffNames) {
@@ -379,6 +395,11 @@ func (w *World) WriteLevel(info *world.LevelInfo) error {
 	if err := WriteNBTFile(filepath.Join(w.Dir, "data", "minecraft", "world_clocks.dat"), nbt.Compound{"data": clocks, "DataVersion": dv}); err != nil {
 		return err
 	}
+	return WriteNBTFile(filepath.Join(w.Dir, "data", "minecraft", "world_gen_settings.dat"), nbt.Compound{"data": worldGenSettings(info), "DataVersion": dv})
+}
+
+// worldGenSettings returns the seed and generator settings (26.x keys).
+func worldGenSettings(info *world.LevelInfo) nbt.Compound {
 	overworldGen := nbt.Compound{
 		"biome_source": nbt.Compound{"preset": "minecraft:overworld", "type": "minecraft:multi_noise"},
 		"settings":     "minecraft:overworld",
@@ -415,5 +436,79 @@ func (w *World) WriteLevel(info *world.LevelInfo) error {
 				"settings":     "minecraft:end", "type": "minecraft:noise"}},
 		},
 	}
-	return WriteNBTFile(filepath.Join(w.Dir, "data", "minecraft", "world_gen_settings.dat"), nbt.Compound{"data": wgs, "DataVersion": dv})
+	return wgs
+}
+
+// writeLegacyLevel writes a level.dat holding all level data, as Java
+// versions before 26.1 do.
+func (w *World) writeLegacyLevel(info *world.LevelInfo) error {
+	dv := LevelDataVersion
+	last := info.LastPlayed
+	if last == 0 {
+		last = time.Now().UnixMilli()
+	}
+	wgs := worldGenSettings(info)
+	wgs["generate_features"] = wgs["generate_structures"]
+	delete(wgs, "generate_structures")
+	data := nbt.Compound{
+		"DataVersion": int32(dv),
+		"version":     int32(AnvilVersion),
+		"Version": nbt.Compound{
+			"Id": int32(dv), "Name": LevelVersionName, "Series": "main", "Snapshot": int8(0),
+		},
+		"LevelName":        info.Name,
+		"GameType":         info.GameType,
+		"allowCommands":    b8(info.Commands),
+		"initialized":      int8(1),
+		"LastPlayed":       last,
+		"Time":             info.GameTime,
+		"DayTime":          info.DayTime,
+		"Difficulty":       int8(info.Difficulty),
+		"DifficultyLocked": int8(0),
+		"hardcore":         b8(info.Hardcore),
+		"raining":          b8(info.Raining),
+		"rainTime":         info.RainTime,
+		"thundering":       b8(info.Thundering),
+		"thunderTime":      info.ThunderTime,
+		"clearWeatherTime": int32(0),
+		"WorldGenSettings": wgs,
+		"DataPacks": nbt.Compound{
+			"Enabled":  nbt.NewList("vanilla"),
+			"Disabled": &nbt.List{Type: nbt.TagString},
+		},
+		"ServerBrands": nbt.NewList("vanilla"),
+		"WasModded":    int8(0),
+	}
+	if dv >= dvSpawnCompound {
+		data["spawn"] = nbt.Compound{
+			"dimension": "minecraft:overworld",
+			"pos":       []int32{info.SpawnX, info.SpawnY, info.SpawnZ},
+			"yaw":       float32(0),
+			"pitch":     float32(0),
+		}
+	} else {
+		data["SpawnX"], data["SpawnY"], data["SpawnZ"] = info.SpawnX, info.SpawnY, info.SpawnZ
+		data["SpawnAngle"] = float32(0)
+	}
+	rules := nbt.Compound{}
+	if dv >= dvGameRuleIDs {
+		for k, v := range info.GameRules {
+			switch t := v.(type) {
+			case bool:
+				rules["minecraft:"+k] = b8(t)
+			case int32:
+				rules["minecraft:"+k] = t
+			}
+		}
+		data["game_rules"] = rules
+	} else {
+		for legacy, name := range world.LegacyJavaRuleNames {
+			switch t := info.GameRules[name].(type) {
+			case bool, int32:
+				rules[legacy] = fmt.Sprint(t)
+			}
+		}
+		data["GameRules"] = rules
+	}
+	return WriteNBTFile(filepath.Join(w.Dir, "level.dat"), nbt.Compound{"Data": data})
 }

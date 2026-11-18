@@ -112,6 +112,21 @@ func warnNewer(opts Options, what string) {
 	opts.Logf("      run `mcconv update-data` to download the latest tables.")
 }
 
+// reportReplaced lists blocks the older target release does not have.
+func reportReplaced(opts Options, target *translate.JavaTarget) {
+	l := target.Replaced()
+	if len(l) == 0 {
+		return
+	}
+	opts.Logf("%d block types do not exist in Java %s and were replaced:", len(l), opts.Config.Versions.JavaName)
+	if len(l) > 30 {
+		l = append(l[:30], fmt.Sprintf("... and %d more", len(l)-30))
+	}
+	for _, s := range l {
+		opts.Logf("  %s", s)
+	}
+}
+
 // reportUnknown lists blocks that were copied by name.
 func reportUnknown(opts Options, bc *blockConverter) {
 	names := bc.unknownBlocks()

@@ -14,6 +14,7 @@ mcconv の実行ファイルには、以下のライブラリとデータが含�
 | Bedrock biome IDs, banner pattern codes, entity IDs / 統合版のバイオーム ID・旗の模様コード・エンティティ ID | [pmmp/BedrockData](https://github.com/pmmp/BedrockData) | CC0 1.0 (public domain / パブリックドメイン) |
 | Schema for upgrading old Bedrock block states / 統合版の古いブロック状態を更新するスキーマ | [BedrockBlockUpgradeSchema](https://github.com/opencollab-incubator/BedrockBlockUpgradeSchema) | CC0 1.0 (public domain / パブリックドメイン) |
 | Java block state list / Java版のブロック状態一覧 | Output of Minecraft's own data generator (`--reports`) / Minecraft 自身のデータジェネレーターの出力 | — |
+| Blocks, items, biomes and entities of older Java versions / 古い Java版のブロック・アイテム・バイオーム・エンティティ一覧 | [PrismarineJS/minecraft-data](https://github.com/PrismarineJS/minecraft-data) | MIT (full text below / 全文は下記) |
 
 Game data such as block and item names are the work of Mojang. GeyserMC states that it does not relicense them, and neither does mcconv.
 No files of the game itself (textures, behavior packs, etc.) are bundled. Bedrock entity definitions are read from the installed game at run time.
@@ -22,6 +23,34 @@ No files of the game itself (textures, behavior packs, etc.) are bundled. Bedroc
 Minecraft のゲーム本体のファイル (テクスチャ、行動パック等) は同梱していません。統合版エンティティの定義は、実行時にインストール済みのゲームから読み込みます。
 
 NOT AN OFFICIAL MINECRAFT PRODUCT. NOT APPROVED BY OR ASSOCIATED WITH MOJANG OR MICROSOFT.
+
+### PrismarineJS/minecraft-data
+
+Only lists of block, item, biome and entity names of older Java versions are used (internal/translate/data/java_versions.json.gz). The project states its license as MIT in its README (it has no separate license file):
+
+```
+MIT License
+
+Copyright (c) PrismarineJS contributors
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+```
 
 ### GeyserMC/mappings
 

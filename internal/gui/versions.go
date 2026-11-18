@@ -30,7 +30,7 @@ type JavaOption struct {
 	Name        string `json:"name"`
 	DataVersion int    `json:"dataVersion"`
 	Installed   bool   `json:"installed"`
-	OK          bool   `json:"ok"` // not older than the block tables
+	OK          bool   `json:"ok"` // supported (1.21.1 or newer)
 }
 
 // BedrockOption is a selectable Bedrock Edition version.
@@ -77,13 +77,16 @@ func (a *App) versionLists() {
 		java[inst.Name] = JavaOption{Name: inst.Name, DataVersion: inst.WorldVersion, Installed: true}
 	}
 	if t != nil {
-		if _, ok := java[t.JavaVersion]; !ok {
-			java[t.JavaVersion] = JavaOption{Name: t.JavaVersion, DataVersion: t.JavaDataVersion}
+		// releases mcconv can write (known offline too)
+		for _, r := range t.JavaReleases() {
+			if _, ok := java[r.Name]; !ok {
+				java[r.Name] = JavaOption{Name: r.Name, DataVersion: r.DataVersion}
+			}
 		}
 	}
 	var jl []JavaOption
 	for _, o := range java {
-		o.OK = t == nil || o.DataVersion >= t.JavaDataVersion
+		o.OK = o.DataVersion >= translate.MinJavaDataVersion
 		jl = append(jl, o)
 	}
 	sort.Slice(jl, func(i, j int) bool { return jl[i].DataVersion > jl[j].DataVersion })
@@ -110,7 +113,7 @@ func (a *App) versionLists() {
 
 	ev := map[string]any{"t": "versions", "java": jl, "bedrock": bl, "online": online}
 	if t != nil {
-		ev["tablesJava"], ev["tablesBedrock"] = t.JavaVersion, t.BedrockVersion
+		ev["tablesJava"], ev["tablesBedrock"], ev["tablesJavaDV"] = t.JavaVersion, t.BedrockVersion, t.JavaDataVersion
 	}
 	a.emit(ev)
 }

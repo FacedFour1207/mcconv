@@ -833,17 +833,17 @@ function renderVersionSelects() {
     $('#s-vhint').textContent = 'バージョン一覧を読み込んでいます…';
     return;
   }
-  const javaOpt = o => `<option value="${esc(o.name)}" data-dv="${o.dataVersion}" ${o.name === v.javaName ? 'selected' : ''} ${o.ok ? '' : 'disabled'}>${esc(o.name)}${o.installed ? ' (インストール済み)' : ''}${o.name === l.tablesJava ? ' ★ おすすめ' : ''}</option>`;
+  const javaOpt = o => `<option value="${esc(o.name)}" data-dv="${o.dataVersion}" ${o.name === v.javaName ? 'selected' : ''} ${o.ok ? '' : 'disabled'}>${esc(o.name)}${o.installed ? ' (インストール済み)' : ''}${o.name === l.tablesJava ? ' ★ おすすめ' : ''}${o.ok && o.dataVersion < l.tablesJavaDV ? ' (古い版向け)' : ''}</option>`;
   const ok = l.java.filter(o => o.ok), old = l.java.filter(o => !o.ok);
   js.innerHTML = `<optgroup label="選べるバージョン">${ok.map(javaOpt).join('')}</optgroup>` +
-    (old.length ? `<optgroup label="対応表 (Java ${esc(l.tablesJava)}) より古いため選べません">${old.slice(0, 40).map(javaOpt).join('')}</optgroup>` : '');
+    (old.length ? `<optgroup label="1.21.1 より古いため選べません">${old.slice(0, 40).map(javaOpt).join('')}</optgroup>` : '');
   if (!l.java.some(o => o.name === v.javaName && o.ok)) js.value = l.tablesJava;
   const beOpt = o => `<option value="${esc(o.version)}" ${o.version === v.bedrockVersion ? 'selected' : ''} ${o.ok ? '' : 'disabled'}>${esc(o.version)}${o.installed ? ' (インストール済み)' : ''}</option>`;
   const bok = l.bedrock.filter(o => o.ok), bold = l.bedrock.filter(o => !o.ok);
   bs.innerHTML = `<optgroup label="選べるバージョン">${bok.map(beOpt).join('')}</optgroup>` +
     (bold.length ? `<optgroup label="対応表 (統合版 ${esc(l.tablesBedrock)}) より古いため選べません">${bold.slice(0, 40).map(beOpt).join('')}</optgroup>` : '');
   if (!l.bedrock.some(o => o.version === v.bedrockVersion && o.ok) && bok.length) bs.value = bok[bok.length - 1].version;
-  $('#s-vhint').textContent = `変換の対応表は Java ${l.tablesJava} / 統合版 ${l.tablesBedrock} です。それより古いバージョンでは新しいブロックを読み込めないため選べません。` +
+  $('#s-vhint').textContent = `変換の対応表は Java ${l.tablesJava} / 統合版 ${l.tablesBedrock} です。Java版は 1.21.1 まで古いバージョンを選べます (そのバージョンにないブロックやアイテムは、似たものに置き換わります)。統合版は対応表より古いバージョンを選べません。` +
     (l.online ? '' : ' (オフラインのため、前回取得した一覧を表示しています)');
 }
 $('#btn-save').onclick = async () => {

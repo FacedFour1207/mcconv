@@ -289,3 +289,41 @@ func SectionToJavaText(s string) any {
 	}
 	return nbt.Compound{"text": "", "extra": extra}
 }
+
+// JavaTextToJSON encodes a text component (as built by SectionToJavaText or
+// read from NBT) as the JSON string Java versions before 1.21.5 store.
+func JavaTextToJSON(v any) string {
+	var buf strings.Builder
+	enc := json.NewEncoder(&buf)
+	enc.SetEscapeHTML(false)
+	if err := enc.Encode(textJSONValue(v)); err != nil {
+		return `""`
+	}
+	return strings.TrimSuffix(buf.String(), "\n")
+}
+
+// textFlags are the boolean style keys of text components (NBT bytes).
+var textFlags = map[string]bool{"bold": true, "italic": true, "underlined": true, "strikethrough": true, "obfuscated": true}
+
+func textJSONValue(v any) any {
+	switch t := v.(type) {
+	case nbt.Compound:
+		m := make(map[string]any, len(t))
+		for k, e := range t {
+			if textFlags[k] {
+				n, _ := nbt.AsInt(e)
+				m[k] = n != 0
+				continue
+			}
+			m[k] = textJSONValue(e)
+		}
+		return m
+	case *nbt.List:
+		l := make([]any, len(t.Items))
+		for i, e := range t.Items {
+			l[i] = textJSONValue(e)
+		}
+		return l
+	}
+	return v
+}

@@ -104,6 +104,7 @@ func (e *Encoder) Encode(ch *world.Chunk) []byte {
 	e.secShape = e.secShape[:0]
 	clear(e.first)
 	for i, b := range ch.Palette {
+		b = c.Target.Block(b)
 		if j, ok := e.first[b]; ok {
 			e.canon[i] = j
 		} else {
@@ -116,6 +117,23 @@ func (e *Encoder) Encode(ch *world.Chunk) []byte {
 	biomePal := ch.BiomePalette
 	if len(biomePal) == 0 {
 		biomePal = []string{"minecraft:plains"}
+	}
+	// biomes the target lacks: replaced, and entries that become equal merged
+	var biomeCanon []uint16
+	if c.Target != nil {
+		mapped := make([]string, len(biomePal))
+		biomeCanon = make([]uint16, len(biomePal))
+		for i, n := range biomePal {
+			mapped[i] = c.Target.Biome(n)
+			biomeCanon[i] = uint16(i)
+			for j := range i {
+				if mapped[j] == mapped[i] {
+					biomeCanon[i] = uint16(j)
+					break
+				}
+			}
+		}
+		biomePal = mapped
 	}
 	w := &bw{b: e.buf[:0]}
 	w.tag(nbt.TagCompound, "")
@@ -135,7 +153,7 @@ func (e *Encoder) Encode(ch *world.Chunk) []byte {
 		hasShape := false
 		if s == nil {
 			w.listHeader("palette", nbt.TagCompound, 1)
-			w.b = append(w.b, c.palettePayload(ch.Palette[0])...)
+			w.b = append(w.b, c.palettePayload(c.Target.Block(ch.Palette[0]))...)
 		} else {
 			pal := e.pal[:0]
 			for i, v := range s.Blocks {
@@ -151,7 +169,7 @@ func (e *Encoder) Encode(ch *world.Chunk) []byte {
 			e.pal = pal
 			w.listHeader("palette", nbt.TagCompound, len(pal))
 			for _, g := range pal {
-				w.b = append(w.b, c.palettePayload(ch.Palette[g])...)
+				w.b = append(w.b, c.palettePayload(c.Target.Block(ch.Palette[g]))...)
 				e.localMap[g] = -1
 				hasShape = hasShape || e.shape[g]
 			}
@@ -185,6 +203,9 @@ func (e *Encoder) Encode(ch *world.Chunk) []byte {
 			var bidx [64]uint32
 			n := 0
 			for i, v := range bsec {
+				if biomeCanon != nil && int(v) < len(biomeCanon) {
+					v = biomeCanon[v]
+				}
 				j := 0
 				for j < n && bl[j] != v {
 					j++

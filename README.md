@@ -36,9 +36,15 @@ Java版 は、そのバージョンを公式ランチャーで一度起動して
 
 | | 対応 |
 |---|---|
-| 書き出すワールド | Java版 26.2 / 統合版 1.26.50 (新しいゲームでもそのまま開けます) |
+| 書き出すワールド | Java版 26.2 (設定で 1.21.1〜26.1 も選べます) / 統合版 1.26.50 (新しいゲームでもそのまま開けます) |
 | 読み込めるワールド | Java版 1.18 以降 / 統合版 1.18 以降 |
 | OS | Windows 10 / 11 (画面表示に WebView2 を使います。Windows 11 には標準で入っています) |
+
+### 古い Java版で書き出す
+
+統合版 → Java版 の変換では、設定 (歯車) の「Java版」で 1.21.1 などの古いバージョンを選べます (コマンドラインでは `-java-version 1.21.1`)。
+そのバージョンにないブロック・アイテム・バイオームは似たものに置き換わり (例: ペールオーク → ダークオーク、ペールガーデン → 暗い森)、置き換えたブロックは変換後に一覧で表示されます。そのバージョンにないエンティティは変換されません。
+看板の文字・アイテム名・装備・ボート・かまど・level.dat・フォルダ構成も、選んだバージョンの形式で書き出します。
 
 ## 変換されるもの
 
@@ -72,6 +78,7 @@ mcconv update-data          (ゲームのアップデート後に対応表を更
 | `-compression -2..9` | 出力の圧縮レベル (既定 1。0 = 無圧縮) |
 | `-all-chunks` | 生成途中のチャンクも変換する |
 | `-v` | 各段階の所要時間を表示 |
+| `-java-version 1.21.1` | 書き出す Java版のバージョン (1.21.1 以降。既定: 設定の値、なければ 26.2) |
 | `-data DIR` | 設定・更新データのフォルダ (既定: exe と同じ場所の `mcconv-data`) |
 
 ### 設定ファイル (mcconv-data フォルダ)
@@ -185,6 +192,7 @@ cd cmd/mcconv && go run github.com/tc-hib/go-winres@latest make --arch amd64,arm
 | 統合版のバイオーム ID・旗の模様・エンティティ ID | [pmmp/BedrockData](https://github.com/pmmp/BedrockData) | CC0 |
 | 統合版の古いブロック状態の更新規則 | [BedrockBlockUpgradeSchema](https://github.com/opencollab-incubator/BedrockBlockUpgradeSchema) | CC0 |
 | Java版のブロック状態一覧 | Minecraft のデータジェネレーター | — |
+| 古い Java版 (1.21.1〜26.1) のブロック・アイテム・バイオーム・エンティティ一覧 | [PrismarineJS/minecraft-data](https://github.com/PrismarineJS/minecraft-data) | MIT |
 
 統合版エンティティの定義は同梱せず、実行時にインストール済みの統合版から読み込みます。
 

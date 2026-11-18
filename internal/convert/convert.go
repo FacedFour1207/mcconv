@@ -438,13 +438,26 @@ func BedrockToJava(srcDir, dstDir string, opts Options) (*Stats, error) {
 	if opts.LevelName != "" {
 		info.Name = opts.LevelName
 	}
-	dst, err := java.Create(dstDir)
+	// an older Java release than the tables: blocks, items and data formats
+	// are converted for it
+	targetDV := opts.Config.Versions.JavaDataVersion
+	target, err := data.JavaTarget(targetDV)
+	if err != nil {
+		return nil, err
+	}
+	if target == nil {
+		targetDV = 0
+	} else {
+		opts.Logf("writing for Java %s (DataVersion %d)", opts.Config.Versions.JavaName, targetDV)
+	}
+	jf := &javaFormat{target: target}
+	dst, err := java.CreateFor(dstDir, targetDV)
 	if err != nil {
 		return nil, err
 	}
 	bc := newBlockConverter(data, false, blockOverrides(opts.Config, false), opts.Logf)
-	items := &itemConverter{t: data, toBedrock: false}
-	bc.be = &beConverter{t: data, items: items, toBedrock: false}
+	items := &itemConverter{t: data, toBedrock: false, jf: jf}
+	bc.be = &beConverter{t: data, items: items, toBedrock: false, jf: jf}
 	bcodec := &bedrock.Codec{Biomes: data}
 	// chunks are written with the table version, but never newer than the
 	// target game (the game upgrades older chunks, it rejects newer ones)
@@ -455,8 +468,9 @@ func BedrockToJava(srcDir, dstDir string, opts Options) (*Stats, error) {
 			chunkDV = t
 		}
 	}
-	jc := &java.Codec{DataVersion: int32(chunkDV)}
+	jc := &java.Codec{DataVersion: int32(chunkDV), Target: target}
 	ec := newEntityConverter(data, items, bc)
+	ec.jf = jf
 	lf := &leafFixer{bc: bc}
 	st := &Stats{}
 	wantDim := map[world.Dimension]bool{}
@@ -569,18 +583,23 @@ func BedrockToJava(srcDir, dstDir string, opts Options) (*Stats, error) {
 	}
 	if info.Flat {
 		for i, l := range info.FlatLayers {
-			info.FlatLayers[i].Block = bc.convertName(l.Block)
+			name := bc.convertName(l.Block)
+			if b, ok := data.JavaDefault(name); ok {
+				name = target.Block(b).Name()
+			}
+			info.FlatLayers[i].Block = name
 		}
 		var id int
 		fmt.Sscan(info.FlatBiome, &id)
 		name, _ := data.BedrockBiomeName(id)
-		info.FlatBiome = data.BiomeBedrockToJava(name)
+		info.FlatBiome = target.Biome(data.BiomeBedrockToJava(name))
 	}
 	if err := dst.WriteLevel(info); err != nil {
 		return nil, err
 	}
 	copyIcon(filepath.Join(srcDir, "world_icon.jpeg"), filepath.Join(dstDir, "icon.png"))
 	reportUnknown(opts, bc)
+	reportReplaced(opts, target)
 	bc.dumpPerPos(opts.Logf)
 	st.PerPosBlocks = bc.perPosCount.Load()
 	st.TranslateErrs = bc.errorCount.Load()
