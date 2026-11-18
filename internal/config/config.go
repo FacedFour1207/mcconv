@@ -35,9 +35,9 @@ type Versions struct {
 // DefaultVersions are the versions this build was tested with.
 func DefaultVersions() Versions {
 	return Versions{
-		JavaDataVersion:     4903,
-		JavaName:            "26.2",
-		BedrockVersion:      []int32{1, 26, 52, 3},
+		JavaDataVersion:     5023,
+		JavaName:            "26.3",
+		BedrockVersion:      []int32{1, 26, 60, 0},
 		BedrockChunkVersion: 42,
 	}
 }

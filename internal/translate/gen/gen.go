@@ -42,66 +42,18 @@ func Build(o Options) ([]byte, error) {
 	tf := &translate.TableFile{Format: translate.TableFormat, JavaVersion: o.JavaVersion, JavaDataVersion: o.JavaDataVersion}
 
 	// --- Java block states (ordered by state id) ---
-	raw, err := os.ReadFile(o.Report)
+	jb, err := JavaBlocks(o.Report)
 	if err != nil {
 		return nil, err
 	}
-	var report map[string]reportBlock
-	if err := json.Unmarshal(raw, &report); err != nil {
-		return nil, fmt.Errorf("%s: %w", o.Report, err)
-	}
-	// the report's property order is lost by the map decoding above; read it
-	// again in document order
-	propOrder, err := reportPropertyOrder(raw)
-	if err != nil {
-		return nil, err
-	}
-	type blk struct {
-		name  string
-		first int
-		def   reportBlock
-	}
-	var blocks []blk
+	tf.JavaBlocks = jb
 	total := 0
-	for name, b := range report {
-		first := b.States[0].ID
-		for _, s := range b.States {
-			first = min(first, s.ID)
+	for _, b := range jb {
+		n := 1
+		for _, p := range b.Props {
+			n *= len(p.Values)
 		}
-		blocks = append(blocks, blk{name, first, b})
-		total += len(b.States)
-	}
-	sort.Slice(blocks, func(i, j int) bool { return blocks[i].first < blocks[j].first })
-	next := 0
-	for _, b := range blocks {
-		if b.first != next {
-			return nil, fmt.Errorf("java states are not contiguous at %s (%d, want %d)", b.name, b.first, next)
-		}
-		def := translate.JavaBlockDef{Name: b.name}
-		for _, p := range propertyOrder(b.def, propOrder[b.name]) {
-			def.Props = append(def.Props, translate.JavaProp{Name: p, Values: b.def.Properties[p]})
-		}
-		// state ids enumerate the properties in order, the last one fastest
-		for _, s := range b.def.States {
-			id, stride := 0, 1
-			for i := len(def.Props) - 1; i >= 0; i-- {
-				p := def.Props[i]
-				vi := indexOf(p.Values, s.Properties[p.Name])
-				if vi < 0 {
-					return nil, fmt.Errorf("%s: unknown value %q of %s", b.name, s.Properties[p.Name], p.Name)
-				}
-				id += vi * stride
-				stride *= len(p.Values)
-			}
-			if b.first+id != s.ID {
-				return nil, fmt.Errorf("%s: state %v has id %d, expected %d", b.name, s.Properties, s.ID, b.first+id)
-			}
-			if s.Default {
-				def.Default = id
-			}
-		}
-		tf.JavaBlocks = append(tf.JavaBlocks, def)
-		next += len(b.def.States)
+		total += n
 	}
 
 	// --- Java -> Bedrock blocks (GeyserMC, indexed by Java state id) ---
@@ -356,4 +308,70 @@ func indexOf(l []string, s string) int {
 		}
 	}
 	return -1
+}
+
+// JavaBlocks reads the block states of the game's data generator report
+// (reports/blocks.json) in state id order.
+func JavaBlocks(report string) ([]translate.JavaBlockDef, error) {
+	var out []translate.JavaBlockDef
+	raw, err := os.ReadFile(report)
+	if err != nil {
+		return nil, err
+	}
+	var blocksByName map[string]reportBlock
+	if err := json.Unmarshal(raw, &blocksByName); err != nil {
+		return nil, fmt.Errorf("%s: %w", report, err)
+	}
+	// the report's property order is lost by the map decoding above; read it
+	// again in document order
+	propOrder, err := reportPropertyOrder(raw)
+	if err != nil {
+		return nil, err
+	}
+	type blk struct {
+		name  string
+		first int
+		def   reportBlock
+	}
+	var blocks []blk
+	for name, b := range blocksByName {
+		first := b.States[0].ID
+		for _, s := range b.States {
+			first = min(first, s.ID)
+		}
+		blocks = append(blocks, blk{name, first, b})
+	}
+	sort.Slice(blocks, func(i, j int) bool { return blocks[i].first < blocks[j].first })
+	next := 0
+	for _, b := range blocks {
+		if b.first != next {
+			return nil, fmt.Errorf("java states are not contiguous at %s (%d, want %d)", b.name, b.first, next)
+		}
+		def := translate.JavaBlockDef{Name: b.name}
+		for _, p := range propertyOrder(b.def, propOrder[b.name]) {
+			def.Props = append(def.Props, translate.JavaProp{Name: p, Values: b.def.Properties[p]})
+		}
+		// state ids enumerate the properties in order, the last one fastest
+		for _, s := range b.def.States {
+			id, stride := 0, 1
+			for i := len(def.Props) - 1; i >= 0; i-- {
+				p := def.Props[i]
+				vi := indexOf(p.Values, s.Properties[p.Name])
+				if vi < 0 {
+					return nil, fmt.Errorf("%s: unknown value %q of %s", b.name, s.Properties[p.Name], p.Name)
+				}
+				id += vi * stride
+				stride *= len(p.Values)
+			}
+			if b.first+id != s.ID {
+				return nil, fmt.Errorf("%s: state %v has id %d, expected %d", b.name, s.Properties, s.ID, b.first+id)
+			}
+			if s.Default {
+				def.Default = id
+			}
+		}
+		out = append(out, def)
+		next += len(b.def.States)
+	}
+	return out, nil
 }

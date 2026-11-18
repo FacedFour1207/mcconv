@@ -197,13 +197,20 @@ func runDataGenerator(minecraftDir, version, out string) (string, int, error) {
 		return "", 0, fmt.Errorf("Java Edition %s: %v (start it once in the launcher)", version, err)
 	}
 	cp := []string{jar}
+	// Missing libraries are skipped: the data generator needs only some of
+	// them, and other launchers may not have downloaded the rest (natives,
+	// networking). They are named if the generator fails.
+	var missing []string
 	for _, l := range vj.Libraries {
 		if !allowedOnThisOS(l.Rules) || l.Downloads.Artifact.Path == "" {
 			continue
 		}
 		p := filepath.Join(minecraftDir, "libraries", filepath.FromSlash(l.Downloads.Artifact.Path))
 		if _, err := os.Stat(p); err != nil {
-			return "", 0, fmt.Errorf("Java Edition %s is missing %s: start it once in the launcher", version, filepath.Base(p))
+			if !strings.Contains(filepath.Base(p), "-natives-") {
+				missing = append(missing, filepath.Base(p))
+			}
+			continue
 		}
 		cp = append(cp, p)
 	}
@@ -216,6 +223,10 @@ func runDataGenerator(minecraftDir, version, out string) (string, int, error) {
 	var log bytes.Buffer
 	cmd.Stdout, cmd.Stderr = &log, &log
 	if err := cmd.Run(); err != nil {
+		if len(missing) > 0 {
+			return "", 0, fmt.Errorf("data generator failed: %v (missing %s: start Java Edition %s once in the official launcher)\n%s",
+				err, strings.Join(missing, ", "), version, lastLines(log.String(), 8))
+		}
 		return "", 0, fmt.Errorf("data generator failed: %v\n%s", err, lastLines(log.String(), 8))
 	}
 	report := filepath.Join(out, "reports", "blocks.json")

@@ -16,8 +16,18 @@ import (
 
 // Target version written to level.dat (set from config.Versions).
 var (
-	LevelDataVersion = 4903
-	LevelVersionName = "26.2"
+	LevelDataVersion = 5023
+	LevelVersionName = "26.3"
+)
+
+// Save formats this code knows. Updated tables (update-data) can be newer;
+// worlds for a newer game are still written in the WriteFormat version and
+// the game upgrades them on load with its own data fixers. Worlds saved by a
+// game newer than ReadFormat may use a format this code cannot read.
+const (
+	WriteFormatDataVersion = 4903 // 26.2
+	WriteFormatName        = "26.2"
+	ReadFormatDataVersion  = 5023 // 26.3: block states as {id, properties} or a name
 )
 
 // AnvilVersion is the region format version stored in level.dat.

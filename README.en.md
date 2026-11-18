@@ -25,7 +25,10 @@ Double-click it, pick a world, press a button — that's it.
 
 The original world is never modified. Do not open the world in the game while it is being converted.
 
-- The moon / sun button at the top right switches between light and dark mode.
+- The three buttons at the top right (screen / sun / moon) set the theme: follow the system, light or dark.
+- The selected world's thumbnail and version are shown in the conversion settings.
+- For Bedrock → Java, the Java version to write is chosen in the conversion settings. Java → Bedrock always writes for the newest Bedrock Edition.
+- Worlds newer than mcconv supports show a warning.
 - "Advanced settings" (詳細設定) lets you limit the CPU threads and memory used (useful if you want to keep using your PC during a conversion).
 - The game version to write can be chosen in the settings (gear icon).
 
@@ -38,13 +41,15 @@ For Java Edition, launch that version once in the official launcher first.
 
 | | Supported |
 |---|---|
-| Worlds written | Java 26.2 (1.21.1 to 26.1 can be chosen in the settings) / Bedrock 1.26.50 (newer game versions open them as usual) |
-| Worlds read | Java 1.18 or later / Bedrock 1.18 or later |
+| Worlds written | Java 26.3 (1.21.1 to 26.2 can also be chosen) / the newest Bedrock (the installed game, else 1.26.60) |
+| Worlds read | Java 1.18 to 26.3 / Bedrock 1.18 or later |
 | OS | Windows 10 / 11 (the window uses WebView2, which is built into Windows 11) |
+
+For newer Java versions, mcconv writes the newest save format it knows (26.2), and the game upgrades the world to its own format when it opens it.
 
 ### Writing older Java versions
 
-When converting Bedrock → Java, older versions such as 1.21.1 can be chosen under "Java" in the settings (gear icon), or with `-java-version 1.21.1` on the command line.
+When converting Bedrock → Java, older versions such as 1.21.1 can be chosen under "Java version to write" in the conversion settings, or with `-java-version 1.21.1` on the command line.
 Blocks, items and biomes that version does not have are replaced with similar ones (for example pale oak → dark oak, pale garden → dark forest), and the replaced blocks are listed after the conversion. Entities that version does not have are not converted.
 Sign text, item names, equipment, boats, furnaces, level.dat and the folder layout are written in that version's format too.
 
@@ -80,12 +85,12 @@ The edition of the input is detected automatically and it is converted to the ot
 | `-compression -2..9` | Output compression level (default 1; 0 = no compression) |
 | `-all-chunks` | Also convert chunks that are not fully generated |
 | `-v` | Show the time taken by each step |
-| `-java-version 1.21.1` | Java version to write (1.21.1 or later; default: the settings, else 26.2) |
+| `-java-version 1.21.1` | Java version to write (1.21.1 or later; default: `versions.json`, else the tables' version) |
 | `-data DIR` | Folder for settings and updated data (default: `mcconv-data` next to the exe) |
 
 ### Settings files (mcconv-data folder)
 
-- `versions.json` the game versions to write (can also be changed in the settings window)
+- `versions.json` the Java version the command line writes (the window asks for each conversion; Bedrock is always written for the newest version)
 - `tables.json.gz` updated mapping tables (created by `update-data`; the built-in tables are used if it is missing)
 - `bedrock_entities.json` Bedrock entity definitions (read from the installed Bedrock Edition)
 - `overrides.json` your own ID mappings, for blocks and other IDs missing from the tables:

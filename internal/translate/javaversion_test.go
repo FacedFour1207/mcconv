@@ -126,3 +126,28 @@ func TestMixedTextList(t *testing.T) {
 		t.Errorf("json %s", got)
 	}
 }
+
+// Java 26.3 stores a block in its default state as just its name.
+func TestCompleteJavaBlock(t *testing.T) {
+	tb, err := Load()
+	if err != nil {
+		t.Fatal(err)
+	}
+	b := tb.CompleteJavaBlock(NewBlock("minecraft:oak_stairs", nil))
+	want := map[string]string{"facing": "north", "half": "bottom", "shape": "straight", "waterlogged": "false"}
+	for k, v := range want {
+		if b.Props[k] != v {
+			t.Errorf("%s = %v, want %s", k, b.Props[k], v)
+		}
+	}
+	// given properties are kept
+	b = tb.CompleteJavaBlock(NewBlock("minecraft:oak_stairs", map[string]any{"facing": "east"}))
+	if b.Props["facing"] != "east" || b.Props["half"] != "bottom" {
+		t.Errorf("got %v", b.Props)
+	}
+	// unknown blocks are unchanged
+	u := NewBlock("mymod:thing", nil)
+	if tb.CompleteJavaBlock(u) != u {
+		t.Error("unknown block changed")
+	}
+}

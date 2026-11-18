@@ -248,6 +248,11 @@ func (jt *JavaTarget) Item(id string) (string, bool) {
 	}
 	for range 4 {
 		f, ok := itemFallbacks[id]
+		if !ok && strings.HasSuffix(id, "_map") {
+			// 26.3 explorer maps have their own ids; older releases use a
+			// filled map, which has no map data here: an empty map
+			f, ok = "minecraft:map", true
+		}
 		if !ok {
 			// block items: the block's replacement
 			if jt.t.HasJavaBlock(id) {
@@ -285,6 +290,14 @@ func (jt *JavaTarget) blockFallback(name string, props map[string]any) string {
 		return mc("moss_carpet")
 	case strings.Contains(base, "pale_oak"):
 		return mc(strings.Replace(base, "pale_oak", "dark_oak", 1))
+	case strings.HasSuffix(base, "_poplar_leaves"): // red_, orange_, yellow_ (26.3)
+		return mc("birch_leaves")
+	case strings.Contains(base, "poplar"):
+		return mc(strings.Replace(base, "poplar", "birch", 1))
+	case strings.HasSuffix(base, "_wool_stairs"), strings.HasSuffix(base, "_wool_slab"):
+		return mc(base[:strings.LastIndex(base, "_wool_")] + "_wool")
+	case strings.HasSuffix(base, "_concrete_stairs"), strings.HasSuffix(base, "_concrete_slab"):
+		return mc(base[:strings.LastIndex(base, "_concrete_")] + "_concrete")
 	case strings.HasSuffix(base, "_shelf"):
 		return mc("air")
 	}
@@ -354,6 +367,10 @@ var blockFallbacks = map[string]string{
 	"sulfur_bricks":            "cut_sandstone",
 	"potent_sulfur":            "sandstone",
 	"sulfur_spike":             "pointed_dripstone",
+	// 26.3
+	"straw_bed":      "yellow_bed",
+	"red_shrub":      "fern",
+	"shelf_mushroom": "air",
 }
 
 // itemFallbacks replace items (that are not block items) added after 1.21.1.
@@ -383,16 +400,20 @@ var itemFallbacks = map[string]string{
 	"minecraft:diamond_spear":         "minecraft:diamond_sword",
 	"minecraft:netherite_spear":       "minecraft:netherite_sword",
 	"minecraft:sulfur_cube_bucket":    "minecraft:bucket",
+	"minecraft:poplar_boat":           "minecraft:birch_boat",
+	"minecraft:poplar_chest_boat":     "minecraft:birch_chest_boat",
 }
 
 func init() {
 	for _, c := range []string{"white", "orange", "magenta", "light_blue", "yellow", "lime", "pink", "gray",
 		"light_gray", "cyan", "purple", "blue", "brown", "green", "red", "black"} {
 		itemFallbacks["minecraft:"+c+"_bundle"] = "minecraft:bundle"
+		itemFallbacks["minecraft:"+c+"_cushion"] = "minecraft:" + c + "_carpet" // 26.3
 	}
 }
 
 var biomeFallbacks = map[string]string{
-	"minecraft:pale_garden":  "minecraft:dark_forest",
-	"minecraft:sulfur_caves": "minecraft:dripstone_caves",
+	"minecraft:pale_garden":    "minecraft:dark_forest",
+	"minecraft:sulfur_caves":   "minecraft:dripstone_caves",
+	"minecraft:dappled_forest": "minecraft:birch_forest",
 }

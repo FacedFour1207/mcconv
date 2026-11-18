@@ -209,7 +209,7 @@ func (c *beConverter) toBedrockBE(java *translate.Block, be *translate.BlockEnti
 		age, _ := s.Number("Age")
 		o["Age"] = int32(age)
 	case "decorated_pot":
-		if l, ok := s.List("sherds"); ok {
+		if l := potSherds(s["sherds"]); l != nil {
 			o["sherds"] = l
 		}
 		if it, ok := s.Compound("item"); ok {
@@ -603,4 +603,30 @@ func remapSlots(l *nbt.List, m map[int64]int64) {
 			c["Slot"] = int8(n)
 		}
 	}
+}
+
+// potSherds returns a decorated pot's sherds as the list [back, left, right,
+// front] Bedrock (and Java before 26.3) uses. Since 26.3 Java stores
+// {back: {id}, left: ..., right: ..., front: ...} and omits plain bricks.
+func potSherds(v any) *nbt.List {
+	switch t := v.(type) {
+	case *nbt.List:
+		return t
+	case nbt.Compound:
+		l := &nbt.List{Type: nbt.TagString}
+		for _, side := range []string{"back", "left", "right", "front"} {
+			id := "minecraft:brick"
+			switch e := t[side].(type) {
+			case string:
+				id = e
+			case nbt.Compound:
+				if s, ok := e.String("id"); ok {
+					id = s
+				}
+			}
+			l.Items = append(l.Items, id)
+		}
+		return l
+	}
+	return nil
 }

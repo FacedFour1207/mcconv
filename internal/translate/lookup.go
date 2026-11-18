@@ -64,6 +64,26 @@ func (t *Tables) JavaStateID(b *Block) (int32, bool) {
 	return id, true
 }
 
+// CompleteJavaBlock returns b with the default value of every property it
+// lacks (Java 26.3+ stores a block in its default state as just its name).
+// Unknown blocks are returned unchanged.
+func (t *Tables) CompleteJavaBlock(b *Block) *Block {
+	jb := t.byName[b.Name()]
+	if jb == nil || len(b.Props) >= len(jb.Props) {
+		return b
+	}
+	props := make(map[string]any, len(jb.Props))
+	for k, v := range b.Props {
+		props[k] = v
+	}
+	for i, p := range jb.Props {
+		if _, ok := props[p.Name]; !ok {
+			props[p.Name] = jb.defaultVal[i]
+		}
+	}
+	return NewBlock(b.Name(), props)
+}
+
 // JavaBlock returns the (shared) Java block of a state id.
 func (t *Tables) JavaBlock(id int32) *Block {
 	cache := t.javaState

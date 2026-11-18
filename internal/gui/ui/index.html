@@ -218,7 +218,13 @@ main {
   padding: 14px; border-radius: var(--radius); background: var(--surface-2); border: 1px solid var(--border);
 }
 .ed { display: flex; flex-direction: column; align-items: center; gap: 6px; text-align: center; min-width: 0; }
-.ed .tile { width: 46px; height: 46px; border-radius: 13px; display: grid; place-items: center; font-weight: 800; font-size: 13px; }
+.ed .tile { width: 56px; height: 56px; border-radius: 14px; display: grid; place-items: center; font-weight: 800; font-size: 13px; position: relative; overflow: hidden; }
+.ed .tile img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; image-rendering: pixelated; }
+.ed .tile .tag { position: absolute; right: 3px; bottom: 3px; font-size: 9.5px; font-weight: 800; padding: 1px 4px; border-radius: 5px; color: #fff; }
+.ed .tile .tag.java { background: rgba(231, 111, 44, .92); }
+.ed .tile .tag.bedrock { background: rgba(59, 130, 246, .92); }
+.ed .ver { font-size: 11.5px; font-weight: 650; color: var(--text-2); background: var(--surface-solid); border: 1px solid var(--border); padding: 1px 8px; border-radius: 99px; white-space: nowrap; }
+.ed .ver.warn { color: var(--danger); border-color: var(--danger-soft); background: var(--danger-soft); }
 .ed .tile.java { background: var(--java-soft); color: var(--java); }
 .ed .tile.bedrock { background: var(--bedrock-soft); color: var(--bedrock); }
 .ed .tile.none { background: var(--surface-hover); color: var(--text-3); }
@@ -328,6 +334,15 @@ select.input option:disabled { color: var(--text-3); }
 .toasts { position: fixed; left: 50%; bottom: 22px; transform: translateX(-50%); display: flex; flex-direction: column; gap: 8px; z-index: 20; align-items: center; }
 .toast { background: var(--text); color: var(--bg); padding: 10px 16px; border-radius: 12px; font-size: 13px; box-shadow: var(--shadow-lg); animation: rise .25s ease both; max-width: 560px; }
 .toast.err { background: var(--danger); color: #fff; }
+.seg.icons { padding: 3px; }
+.seg.icons button { padding: 6px 9px; }
+.seg.icons .icon { width: 17px; height: 17px; }
+.pill.notice { cursor: pointer; border-color: transparent; background: var(--accent-soft); color: var(--accent-ink); font-weight: 600; }
+.pill.notice:hover { filter: brightness(1.05); }
+.pill.notice .icon { width: 15px; height: 15px; }
+.warnbox { background: var(--danger-soft); color: var(--danger); border-radius: 12px; padding: 11px 13px; font-size: 12.5px; line-height: 1.6; display: flex; flex-direction: column; gap: 8px; }
+.warnbox b { font-weight: 700; }
+.warnbox .switch .txt { color: var(--danger); font-size: 12.5px; }
 
 .disabled-overlay { pointer-events: none; opacity: .5; filter: saturate(.6); transition: opacity .2s; }
 ::-webkit-scrollbar { width: 10px; height: 10px; }
@@ -346,7 +361,7 @@ select.input option:disabled { color: var(--text-3); }
   main { grid-template-columns: 1fr; padding: 4px 16px 16px; }
   header { padding: 14px 16px 10px; flex-wrap: wrap; }
   .worlds { max-height: 60vh; }
-  #pill-target { display: none; }
+  #pill-update { display: none !important; }
 }
 </style>
 </head>
@@ -390,8 +405,12 @@ select.input option:disabled { color: var(--text-3); }
       <p>Java版 ⇄ 統合版 ワールド変換</p>
     </div>
     <div class="spacer"></div>
-    <span class="pill" id="pill-target" title="変換後のワールドに書き込むゲームバージョン">出力: <b id="pill-java">Java —</b> / <b id="pill-be">統合版 —</b></span>
-    <button class="icon-btn" id="btn-theme" title="ライト / ダークを切り替え"><svg class="icon"><use href="#i-moon"/></svg></button>
+    <span class="pill notice" id="pill-update" style="display:none" title="設定を開く"></span>
+    <div class="seg icons" id="theme-seg" role="group" aria-label="テーマ">
+      <button data-v="system" title="システムに合わせる" aria-label="システムに合わせる"><svg class="icon"><use href="#i-monitor"/></svg></button>
+      <button data-v="light" title="ライト" aria-label="ライト"><svg class="icon"><use href="#i-sun"/></svg></button>
+      <button data-v="dark" title="ダーク" aria-label="ダーク"><svg class="icon"><use href="#i-moon"/></svg></button>
+    </div>
     <button class="icon-btn" id="btn-settings" title="設定"><svg class="icon"><use href="#i-gear"/></svg></button>
   </header>
 
@@ -437,20 +456,6 @@ select.input option:disabled { color: var(--text-3); }
   </div>
   <div class="drawer-body">
     <div class="section">
-      <h3><svg class="icon"><use href="#i-cube"/></svg>出力するゲームバージョン</h3>
-      <div class="hint">変換後のワールドがこのバージョンのものとして保存されます。遊ぶゲームより新しくしないでください (古い分には、ゲームが自動で新しくします)。</div>
-      <div class="field"><label for="s-java">Java版</label><select class="input" id="s-java"><option>読み込み中…</option></select></div>
-      <div class="field"><label for="s-bedrock">統合版</label><select class="input" id="s-bedrock"><option>読み込み中…</option></select></div>
-      <div class="hint" id="s-vhint"></div>
-      <div class="row"><div class="spacer"></div><button class="btn primary" id="btn-save">保存</button></div>
-    </div>
-    <div class="section">
-      <h3><svg class="icon"><use href="#i-sun"/></svg>外観</h3>
-      <div class="seg full" id="s-theme">
-        <button data-v="system">システムに合わせる</button><button data-v="light">ライト</button><button data-v="dark">ダーク</button>
-      </div>
-    </div>
-    <div class="section">
       <h3><svg class="icon"><use href="#i-download"/></svg>ゲームのアップデートに対応</h3>
       <div class="hint">インターネットから最新のブロック対応表 (GeyserMC) をダウンロードし、インストールされている Java版 から同じバージョンのブロック情報を読み込みます。マインクラフトのアップデート後に押してください (Java版 はランチャーで一度起動しておく必要があります)。</div>
       <div class="kv"><span>変換テーブル</span><b id="t-src">読み込み中…</b></div>
@@ -461,7 +466,7 @@ select.input option:disabled { color: var(--text-3); }
     <div class="section">
       <h3><svg class="icon"><use href="#i-folder"/></svg>データフォルダ</h3>
       <div class="path" id="s-data"></div>
-      <div class="hint">versions.json (出力バージョン)・overrides.json (独自の ID 対応表)・tables.json.gz (更新した変換テーブル) がここに保存されます。</div>
+      <div class="hint">overrides.json (独自の ID 対応表)・tables.json.gz (更新した変換テーブル) がここに保存されます。</div>
       <button class="btn" id="btn-data">フォルダを開く</button>
     </div>
     <div class="section">
@@ -489,7 +494,7 @@ const S = {
   sel: null, name: '', dests: [], dest: '', workers: 0, maxWorkers: 8, mem: 0, totalMem: 0, vlists: null,
   dims: new Set(DIMS.map(d => d[0])), comp: 1, allChunks: false, adv: false,
   view: 'setup', // setup | running | done | error | canceled
-  job: null, loaded: false,
+  job: null, loaded: false, javaVer: '', force: false,
 };
 
 function toast(msg, err) {
@@ -582,7 +587,7 @@ $('#btn-pick').onclick = async () => {
 };
 
 async function select(w) {
-  S.sel = w; S.name = w.name; S.view = 'setup';
+  S.sel = w; S.name = w.name; S.view = 'setup'; S.force = false;
   renderGrid();
   const target = w.edition === 'java' ? 'bedrock' : 'java';
   S.dests = await mcDestinations(target);
@@ -591,14 +596,63 @@ async function select(w) {
 }
 
 /* ---------- side panel ---------- */
+// Java releases mcconv can write (from the "versions" event), newest first
+function javaTargets() {
+  const l = S.vlists;
+  if (!l) return [];
+  return l.java.filter(o => o.ok && o.dataVersion <= l.tablesJavaDV);
+}
+function javaTarget() {
+  if (javaTargets().some(o => o.name === S.javaVer)) return S.javaVer;
+  return S.vlists ? S.vlists.tablesJava : '';
+}
+// the Bedrock version Java -> Bedrock writes: the installed game, else the tables
+function bedrockTarget() {
+  const l = S.vlists;
+  if (!l) return '';
+  const inst = l.bedrock.find(o => o.installed);
+  const v = inst && !olderVer(inst.version, l.tablesBedrock) ? inst.version : l.tablesBedrock;
+  return v.split('.').slice(0, 3).join('.');
+}
+function olderVer(a, b) {
+  const x = a.split('.').map(Number), y = b.split('.').map(Number);
+  for (let i = 0; i < Math.max(x.length, y.length); i++) { if ((x[i] || 0) !== (y[i] || 0)) return (x[i] || 0) < (y[i] || 0); }
+  return false;
+}
+// is the world newer than the conversion tables? (Bedrock hotfixes count as the release)
+function tooNew(w) {
+  const l = S.vlists;
+  if (!w || !l) return false;
+  if (w.edition === 'java') return w.dataVersion > l.tablesJavaDV || (l.readJavaDV > 0 && w.dataVersion > l.readJavaDV);
+  if (!w.version || !l.tablesBedrock) return false;
+  const r = v => v.split('.').map(Number).map((n, i) => i === 2 ? Math.floor(n / 10) : n).slice(0, 3).join('.');
+  return olderVer(r(l.tablesBedrock), r(w.version));
+}
+function verLabel(e, v) { return v ? `${e === 'java' ? 'Java' : '統合版'} ${esc(v)}` : ''; }
+
 function flowHTML() {
   const w = S.sel;
   const src = w ? w.edition : null, dst = w ? (w.edition === 'java' ? 'bedrock' : 'java') : null;
-  const tile = e => `<div class="tile ${e || 'none'}">${e === 'java' ? 'JE' : e === 'bedrock' ? 'BE' : '?'}</div>`;
+  const tile = e => `<div class="tile ${e || 'none'}">${w && w.icon ? `<img src="${w.icon}" alt=""><span class="tag ${e}">${e === 'java' ? 'JE' : 'BE'}</span>` : e === 'java' ? 'JE' : e === 'bedrock' ? 'BE' : '?'}</div>`;
+  const srcVer = w ? `<div class="ver ${tooNew(w) ? 'warn' : ''}">${verLabel(src, w.version) || 'バージョン不明'}</div>` : '';
+  const dstV = dst === 'java' ? javaTarget() : dst === 'bedrock' ? bedrockTarget() : '';
+  const dstVer = w ? `<div class="ver">${verLabel(dst, dstV) || '—'}</div>` : '';
   return `<div class="flow">
-    <div class="ed">${tile(src)}<div class="lbl">${src ? ED[src] : '未選択'}</div><div class="nm">${w ? esc(w.name) : '&nbsp;'}</div></div>
+    <div class="ed">${tile(src)}<div class="lbl">${src ? ED[src] : '未選択'}</div><div class="nm">${w ? esc(w.name) : '&nbsp;'}</div>${srcVer}</div>
     <div class="arrow">${icon('arrow')}</div>
-    <div class="ed">${tile(dst)}<div class="lbl">${dst ? ED[dst] : '—'}</div><div class="nm">${w ? esc(S.name || w.name) : '&nbsp;'}</div></div>
+    <div class="ed">${tile(dst)}<div class="lbl">${dst ? ED[dst] : '—'}</div><div class="nm">${w ? esc(S.name || w.name) : '&nbsp;'}</div>${dstVer}</div>
+  </div>`;
+}
+
+function newerHTML(w) {
+  if (!tooNew(w)) return '';
+  const l = S.vlists;
+  const supported = w.edition === 'java' ? `Java ${esc(l.tablesJava)}` : `統合版 ${esc(l.tablesBedrock)}`;
+  return `<div class="warnbox">
+    <div><b>このワールド (${verLabel(w.edition, w.version)}) は、mcconv が対応しているバージョン (${supported}) より新しいです。</b><br>
+    新しいブロックやアイテムが変換されなかったり、地形が欠けたりすることがあります。先に「データを更新」を試してください。</div>
+    <div><button class="btn" id="btn-goupdate">${icon('refresh')}データを更新</button></div>
+    ${w.edition === 'java' ? `<label class="switch"><input type="checkbox" id="f-force" ${S.force ? 'checked' : ''}><span class="track"></span><span class="txt">それでも変換する</span></label>` : ''}
   </div>`;
 }
 
@@ -615,7 +669,14 @@ function renderSide() {
   }
   const destOpts = S.dests.map(d => `<option value="${esc(d.path)}" ${d.path === S.dest ? 'selected' : ''}>${esc(d.label)}</option>`).join('')
     + `<option value="__pick">別のフォルダを選ぶ…</option>`;
-  side.innerHTML = flowHTML() + `
+  const jt = S.sel.edition === 'bedrock' ? javaTargets() : [];
+  // Java format changes can lose whole chunks (26.3), so Java needs a confirmation
+  const blocked = tooNew(S.sel) && S.sel.edition === 'java' && !S.force;
+  side.innerHTML = flowHTML() + newerHTML(S.sel) + `
+    ${S.sel.edition === 'bedrock' ? `<div class="field"><label for="f-jver">書き出す Java版 のバージョン</label>
+      <select class="input" id="f-jver">${jt.length ? jt.map(o => `<option value="${esc(o.name)}" ${o.name === javaTarget() ? 'selected' : ''}>${esc(o.name)}${o.installed ? ' (インストール済み)' : ''}${o.name === S.vlists.tablesJava ? ' ★ 最新' : ''}</option>`).join('') : '<option>読み込み中…</option>'}</select>
+      <div class="hint">遊ぶ Java版 と同じバージョンを選んでください。古いバージョンにないブロックやアイテムは、似たものに置き換わります (1.21.1 まで選べます)。</div></div>`
+      : `<div class="hint">統合版 は、いつも最新版 (${esc(bedrockTarget() || '—')}) のワールドとして書き出します。</div>`}
     <div class="field"><label for="f-name">変換後のワールド名</label><input class="input" id="f-name" value="${esc(S.name)}" maxlength="80"></div>
     <div class="field"><label for="f-dest">保存先</label>
       <select class="input" id="f-dest">${S.dests.length || S.dest ? '' : '<option value="">(選択してください)</option>'}${destOpts}</select>
@@ -640,7 +701,13 @@ function renderSide() {
           <span class="txt">生成途中のチャンクも変換<small>通常はオフ (ゲームが作りかけの地形を再生成します)</small></span></label>
       </div>
     </details>
-    <button class="btn primary big" id="btn-start">${icon('play')}変換を開始</button>`;
+    <button class="btn primary big" id="btn-start" ${blocked ? 'disabled' : ''}>${icon('play')}変換を開始</button>`;
+  const jv = $('#f-jver');
+  if (jv) jv.onchange = e => { S.javaVer = e.target.value; savePrefs(); renderSide(); };
+  const gu = $('#btn-goupdate');
+  if (gu) gu.onclick = () => openDrawer(true);
+  const fc = $('#f-force');
+  if (fc) fc.onchange = e => { S.force = e.target.checked; $('#btn-start').disabled = !S.force; };
   $('#f-name').oninput = e => { S.name = e.target.value; side.querySelectorAll('.flow .nm')[1].textContent = S.name || S.sel.name; };
   $('#f-dest').onchange = async e => {
     if (e.target.value === '__pick') {
@@ -672,6 +739,7 @@ async function start() {
     source: w.path, target: w.edition === 'java' ? 'bedrock' : 'java', name: S.name.trim() || w.name,
     destRoot: S.dest, dims: DIMS.map(d => d[0]).filter(d => S.dims.has(d)),
     workers: S.workers, compression: S.comp, allChunks: S.allChunks, memoryMB: S.mem,
+    javaVersion: w.edition === 'bedrock' ? javaTarget() : '',
   };
   try {
     const out = await mcStart(req);
@@ -802,7 +870,7 @@ window.__mc = ev => {
       renderSide();
       if (ev.ok) { toast('変換が完了しました'); loadWorlds(); }
       break;
-    case 'versions': S.vlists = ev; renderVersionSelects(); break;
+    case 'versions': S.vlists = ev; showUpdateNotice(); if (S.view === 'setup') renderSide(); break;
     case 'ulog': { const el = $('#ulog'); el.insertAdjacentHTML('beforeend', logLine(ev.m)); el.scrollTop = el.scrollHeight; } break;
   }
 };
@@ -814,44 +882,14 @@ function openDrawer(open) { $('#drawer').classList.toggle('open', open); $('#scr
 $('#btn-settings').onclick = () => openDrawer(true);
 $('#btn-close').onclick = $('#scrim').onclick = () => openDrawer(false);
 document.addEventListener('keydown', e => { if (e.key === 'Escape') openDrawer(false); });
-function showVersions(v) {
-  S.settings = v;
-  $('#pill-java').textContent = 'Java ' + v.javaName;
-  $('#pill-be').textContent = '統合版 ' + v.bedrockVersion.split('.').slice(0, 3).join('.');
-  renderVersionSelects();
+// a newer Java is installed than the tables know: suggest updating the data
+function showUpdateNotice() {
+  const l = S.vlists, p = $('#pill-update');
+  const inst = l ? l.java.filter(o => o.installed && o.dataVersion > l.tablesJavaDV).sort((a, b) => b.dataVersion - a.dataVersion)[0] : null;
+  p.style.display = inst ? '' : 'none';
+  if (inst) p.innerHTML = `${icon('refresh')}Java ${esc(inst.name)} 用にデータを更新できます`;
 }
-
-// version lists ("versions" event): only versions not older than the block
-// tables can be chosen
-function renderVersionSelects() {
-  const v = S.settings, l = S.vlists;
-  if (!v) return;
-  const js = $('#s-java'), bs = $('#s-bedrock');
-  if (!l) {
-    js.innerHTML = `<option value="${esc(v.javaName)}">${esc(v.javaName)}</option>`;
-    bs.innerHTML = `<option value="${esc(v.bedrockVersion)}">${esc(v.bedrockVersion)}</option>`;
-    $('#s-vhint').textContent = 'バージョン一覧を読み込んでいます…';
-    return;
-  }
-  const javaOpt = o => `<option value="${esc(o.name)}" data-dv="${o.dataVersion}" ${o.name === v.javaName ? 'selected' : ''} ${o.ok ? '' : 'disabled'}>${esc(o.name)}${o.installed ? ' (インストール済み)' : ''}${o.name === l.tablesJava ? ' ★ おすすめ' : ''}${o.ok && o.dataVersion < l.tablesJavaDV ? ' (古い版向け)' : ''}</option>`;
-  const ok = l.java.filter(o => o.ok), old = l.java.filter(o => !o.ok);
-  js.innerHTML = `<optgroup label="選べるバージョン">${ok.map(javaOpt).join('')}</optgroup>` +
-    (old.length ? `<optgroup label="1.21.1 より古いため選べません">${old.slice(0, 40).map(javaOpt).join('')}</optgroup>` : '');
-  if (!l.java.some(o => o.name === v.javaName && o.ok)) js.value = l.tablesJava;
-  const beOpt = o => `<option value="${esc(o.version)}" ${o.version === v.bedrockVersion ? 'selected' : ''} ${o.ok ? '' : 'disabled'}>${esc(o.version)}${o.installed ? ' (インストール済み)' : ''}</option>`;
-  const bok = l.bedrock.filter(o => o.ok), bold = l.bedrock.filter(o => !o.ok);
-  bs.innerHTML = `<optgroup label="選べるバージョン">${bok.map(beOpt).join('')}</optgroup>` +
-    (bold.length ? `<optgroup label="対応表 (統合版 ${esc(l.tablesBedrock)}) より古いため選べません">${bold.slice(0, 40).map(beOpt).join('')}</optgroup>` : '');
-  if (!l.bedrock.some(o => o.version === v.bedrockVersion && o.ok) && bok.length) bs.value = bok[bok.length - 1].version;
-  $('#s-vhint').textContent = `変換の対応表は Java ${l.tablesJava} / 統合版 ${l.tablesBedrock} です。Java版は 1.21.1 まで古いバージョンを選べます (そのバージョンにないブロックやアイテムは、似たものに置き換わります)。統合版は対応表より古いバージョンを選べません。` +
-    (l.online ? '' : ' (オフラインのため、前回取得した一覧を表示しています)');
-}
-$('#btn-save').onclick = async () => {
-  const jo = $('#s-java').selectedOptions[0];
-  const v = { javaName: $('#s-java').value, javaDataVersion: jo ? +jo.dataset.dv || 0 : 0, bedrockVersion: $('#s-bedrock').value };
-  if (!v.javaDataVersion) v.javaDataVersion = S.settings.javaDataVersion;
-  try { await mcSaveVersions(v); showVersions(v); toast('保存しました'); } catch (e) { toast(errText(e), true); }
-};
+$('#pill-update').onclick = () => openDrawer(true);
 
 /* ---------- theme ---------- */
 const darkQuery = matchMedia('(prefers-color-scheme: dark)');
@@ -862,17 +900,17 @@ function applyTheme() {
   const dark = p === 'dark' || (p === 'system' && darkQuery.matches);
   document.documentElement.dataset.theme = dark ? 'dark' : 'light';
   if (window.mcSetDark) mcSetDark(dark).catch(() => {});
-  $('#btn-theme use').setAttribute('href', dark ? '#i-sun' : '#i-moon');
-  $('#btn-theme').title = dark ? 'ライトにする' : 'ダークにする';
-  document.querySelectorAll('#s-theme button').forEach(b => b.classList.toggle('on', b.dataset.v === p));
+  document.querySelectorAll('#theme-seg button').forEach(b => {
+    b.classList.toggle('on', b.dataset.v === p);
+    b.setAttribute('aria-pressed', b.dataset.v === p);
+  });
 }
 darkQuery.addEventListener('change', applyTheme);
-$('#btn-theme').onclick = () => setThemePref(document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark');
-document.querySelectorAll('#s-theme button').forEach(b => b.onclick = () => setThemePref(b.dataset.v));
+document.querySelectorAll('#theme-seg button').forEach(b => b.onclick = () => setThemePref(b.dataset.v));
 
 /* ---------- remembered conversion settings ---------- */
 function savePrefs() {
-  try { localStorage.setItem('mcconv.prefs', JSON.stringify({ workers: S.workers, comp: S.comp, mem: S.mem, allChunks: S.allChunks, dims: [...S.dims] })); } catch (e) {}
+  try { localStorage.setItem('mcconv.prefs', JSON.stringify({ workers: S.workers, comp: S.comp, mem: S.mem, allChunks: S.allChunks, dims: [...S.dims], javaVer: S.javaVer })); } catch (e) {}
 }
 function loadPrefs() {
   let p = null;
@@ -882,6 +920,7 @@ function loadPrefs() {
   if (COMP.some(c => c[0] === p.comp)) S.comp = p.comp;
   if (p.mem >= 0 && (!S.totalMem || p.mem < S.totalMem)) S.mem = p.mem;
   S.allChunks = !!p.allChunks;
+  if (typeof p.javaVer === 'string') S.javaVer = p.javaVer;
   if (Array.isArray(p.dims) && p.dims.length) S.dims = new Set(p.dims.filter(d => DIMS.some(x => x[0] === d)));
 }
 function memOptions() {
@@ -900,7 +939,7 @@ $('#btn-update').onclick = async () => {
 };
 async function updateFinished(ev) {
   $('#btn-update').disabled = false; $('#btn-update').lastChild.textContent = 'インストール済みのゲームから更新';
-  if (ev.ok) { const st = await mcState(); showVersions(st.settings); toast('データを更新しました'); }
+  if (ev.ok) { await mcState(); toast('データを更新しました'); }
   else toast('更新に失敗しました: ' + (ev.m || ''), true);
 }
 $('#btn-data').onclick = () => mcOpen(S.dataDir);
@@ -914,7 +953,6 @@ $('#btn-data').onclick = () => mcOpen(S.dataDir);
     S.maxWorkers = st.workers; S.workers = st.workers; S.dataDir = st.dataDir; S.totalMem = st.memoryMB;
     loadPrefs();
     $('#s-data').textContent = st.dataDir;
-    showVersions(st.settings);
     renderSide();
   } catch (e) { toast(errText(e), true); }
   loadWorlds();

@@ -11,6 +11,7 @@ import (
 	"strings"
 	"time"
 
+	javaworld "mcconv/internal/java"
 	"mcconv/internal/translate"
 	"mcconv/internal/update"
 )
@@ -114,6 +115,7 @@ func (a *App) versionLists() {
 	ev := map[string]any{"t": "versions", "java": jl, "bedrock": bl, "online": online}
 	if t != nil {
 		ev["tablesJava"], ev["tablesBedrock"], ev["tablesJavaDV"] = t.JavaVersion, t.BedrockVersion, t.JavaDataVersion
+		ev["readJavaDV"] = javaworld.ReadFormatDataVersion
 	}
 	a.emit(ev)
 }

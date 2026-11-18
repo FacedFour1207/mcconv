@@ -146,3 +146,26 @@ func reportUnknown(opts Options, bc *blockConverter) {
 	}
 	opts.Logf("map them in overrides.json if the target edition uses a different id.")
 }
+
+// LatestBedrockVersion is the Bedrock version Java -> Bedrock conversions
+// write: the installed game's version when it is at least the tables'
+// version, otherwise the tables' version. Bedrock worlds are always written
+// for the newest game (older Bedrock versions are rarely played).
+func LatestBedrockVersion(t *translate.Tables) []int32 {
+	var v [4]int32
+	fmt.Sscanf(t.BedrockVersion, "%d.%d.%d.%d", &v[0], &v[1], &v[2], &v[3])
+	best := v[:]
+	if be, err := update.FindBedrock(""); err == nil && len(be.Version) >= 4 && !lessVersion(be.Version, best) {
+		best = be.Version[:4]
+	}
+	return best
+}
+
+func lessVersion(a, b []int32) bool {
+	for i := 0; i < len(a) && i < len(b); i++ {
+		if a[i] != b[i] {
+			return a[i] < b[i]
+		}
+	}
+	return len(a) < len(b)
+}

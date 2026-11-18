@@ -297,9 +297,9 @@ func (w *Writer) Finish() error {
 
 // Target Bedrock version written to level.dat (set with SetTargetVersion).
 var (
-	LastOpenedVersion = []int32{1, 26, 52, 3, 0}
+	LastOpenedVersion = []int32{1, 26, 60, 0, 0}
 	MinCompatVersion  = []int32{1, 26, 0, 0, 0}
-	InventoryVersion  = "1.26.52"
+	InventoryVersion  = "1.26.60"
 )
 
 // SetTargetVersion sets the level.dat version fields from major.minor.patch.revision.

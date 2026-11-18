@@ -20,6 +20,9 @@ type Codec struct {
 	// Target converts blocks and biomes for an older release when encoding
 	// (nil: the tables' version).
 	Target *translate.JavaTarget
+	// Complete fills in the properties a stored block state leaves out:
+	// since 26.3 a block in its default state is stored as just its name.
+	Complete func(*translate.Block) *translate.Block
 
 	intern sync.Map // raw palette key -> *translate.Block (shared between chunks)
 }
@@ -158,12 +161,35 @@ func (c *Codec) addBlockEntities(ch *world.Chunk, bes *nbt.List) {
 
 var errNotCompound = fmt.Errorf("java: chunk root is not a compound")
 
+// BlockStateFields reads a stored block state. Before 26.3 it is
+// {Name, Properties}; since 26.3 (DataVersion 5006) it is {id, properties},
+// or just the name string when there are no properties (wrapped as {"": name}
+// in lists that also hold compounds).
+func BlockStateFields(v any) (name string, props nbt.Compound) {
+	switch t := v.(type) {
+	case string:
+		return t, nil
+	case nbt.Compound:
+		if s, ok := t.String("Name"); ok {
+			name = s
+		} else if s, ok := t.String("id"); ok {
+			name = s
+		} else if s, ok := t.String(""); ok {
+			name = s
+		}
+		if p, ok := t.Compound("Properties"); ok {
+			props = p
+		} else if p, ok := t.Compound("properties"); ok {
+			props = p
+		}
+	}
+	return name, props
+}
+
 // paletteBlock converts a palette compound into a block. Equal states return
 // the same (shared, read-only) block.
 func (c *Codec) paletteBlock(pe any) *translate.Block {
-	pc, _ := pe.(nbt.Compound)
-	name, _ := pc.String("Name")
-	pp, _ := pc.Compound("Properties")
+	name, pp := BlockStateFields(pe)
 	var kb strings.Builder
 	kb.WriteString(name)
 	if len(pp) > 0 {
@@ -209,7 +235,11 @@ func (c *Codec) newPaletteBlock(name string, pp nbt.Compound) *translate.Block {
 			}
 		}
 	}
-	return translate.NewBlock(name, props)
+	b := translate.NewBlock(name, props)
+	if c.Complete != nil {
+		b = c.Complete(b)
+	}
+	return b
 }
 
 // unpackIndices decodes the 1.16+ packed long array (entries do not span longs).

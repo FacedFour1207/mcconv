@@ -98,7 +98,9 @@ func load(dir string) map[[2]int32]*world.Chunk {
 	}
 	w, err := java.Open(dir)
 	check(err)
-	codec := &java.Codec{}
+	t, err := translate.Load()
+	check(err)
+	codec := &java.Codec{Complete: t.CompleteJavaBlock}
 	files, err := anvil.ListRegions(w.RegionDir(world.Overworld))
 	check(err)
 	for _, f := range files {

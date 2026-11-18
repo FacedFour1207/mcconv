@@ -161,7 +161,8 @@ type StartRequest struct {
 	Workers     int      `json:"workers"`
 	Compression int      `json:"compression"`
 	AllChunks   bool     `json:"allChunks"`
-	MemoryMB    int      `json:"memoryMB"` // 0 = no limit
+	MemoryMB    int      `json:"memoryMB"`    // 0 = no limit
+	JavaVersion string   `json:"javaVersion"` // Java release to write (Bedrock -> Java)
 }
 
 // Start begins a conversion and returns the output folder. Progress arrives
@@ -202,6 +203,9 @@ func (a *App) Start(r StartRequest) (string, error) {
 	}
 	if r.AllChunks {
 		args = append(args, "-all-chunks")
+	}
+	if r.Target == "java" && r.JavaVersion != "" {
+		args = append(args, "-java-version", r.JavaVersion)
 	}
 	args = append(args, r.Source, out)
 	return out, a.run(&job{out: out}, args, false)

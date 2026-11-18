@@ -17,14 +17,15 @@ import (
 
 // WorldInfo describes a world for the world list.
 type WorldInfo struct {
-	Path       string `json:"path"`
-	Folder     string `json:"folder"`
-	Name       string `json:"name"`
-	Edition    string `json:"edition"` // "java" | "bedrock"
-	Version    string `json:"version"`
-	Mode       string `json:"mode"`
-	Icon       string `json:"icon"`       // data URL or ""
-	LastPlayed int64  `json:"lastPlayed"` // unix ms
+	Path        string `json:"path"`
+	Folder      string `json:"folder"`
+	Name        string `json:"name"`
+	Edition     string `json:"edition"` // "java" | "bedrock"
+	Version     string `json:"version"`
+	DataVersion int    `json:"dataVersion"` // Java worlds (0 if unknown)
+	Mode        string `json:"mode"`
+	Icon        string `json:"icon"`       // data URL or ""
+	LastPlayed  int64  `json:"lastPlayed"` // unix ms
 }
 
 // javaSavesDir is the default Java launcher's saves folder.
@@ -99,6 +100,9 @@ func inspectWorld(dir string) (*WorldInfo, error) {
 		}
 		if v, ok := data.Compound("Version"); ok {
 			w.Version, _ = v.String("Name")
+		}
+		if dv, ok := data.Number("DataVersion"); ok {
+			w.DataVersion = int(dv)
 		}
 		if t, ok := data.Number("LastPlayed"); ok && t > 0 {
 			w.LastPlayed = t
@@ -177,11 +181,13 @@ func destinations(target string) []Destination {
 	type cand struct {
 		d      Destination
 		newest time.Time
+		n      int
 	}
 	var cs []cand
 	for _, dir := range bedrockWorldDirs() {
 		entries, _ := os.ReadDir(dir)
 		var newest time.Time
+		recent := ""
 		n := 0
 		for _, e := range entries {
 			if !e.IsDir() {
@@ -190,20 +196,36 @@ func destinations(target string) []Destination {
 			n++
 			if fi, err := e.Info(); err == nil && fi.ModTime().After(newest) {
 				newest = fi.ModTime()
+				recent = e.Name()
+				if b, err := os.ReadFile(filepath.Join(dir, e.Name(), "levelname.txt")); err == nil && strings.TrimSpace(string(b)) != "" {
+					recent = strings.TrimSpace(string(b))
+				}
 			}
 		}
-		label := "統合版 のワールド"
+		// The account name (gamertag) is not stored on the PC, so profiles
+		// are told apart by their most recent world.
+		label := "統合版"
 		if strings.Contains(dir, "Packages") {
 			label += " (旧 UWP 版)"
-		} else {
-			user := filepath.Base(filepath.Dir(filepath.Dir(filepath.Dir(dir))))
-			if len(user) > 6 {
-				user = user[:6] + "…"
-			}
-			label += fmt.Sprintf(" (プロファイル %s)", user)
 		}
-		label += fmt.Sprintf(" — %d 個", n)
-		cs = append(cs, cand{Destination{Path: dir, Label: label, Game: true}, newest})
+		if n > 0 {
+			label += fmt.Sprintf(" — 最近のワールド「%s」(%d/%d) ほか、全 %d 個", recent, newest.Month(), newest.Day(), n)
+		} else {
+			label += " — ワールドなし"
+		}
+		cs = append(cs, cand{Destination{Path: dir, Label: label, Game: true}, newest, n})
+	}
+	// profiles without worlds are hidden (other accounts that signed in once)
+	// unless no profile has any
+	all := cs
+	cs = cs[:0:0]
+	for _, c := range all {
+		if c.n > 0 {
+			cs = append(cs, c)
+		}
+	}
+	if len(cs) == 0 {
+		cs = all
 	}
 	sort.SliceStable(cs, func(i, j int) bool { return cs[i].newest.After(cs[j].newest) })
 	for _, c := range cs {

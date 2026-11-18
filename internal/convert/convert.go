@@ -116,9 +116,15 @@ func JavaToBedrock(srcDir, dstDir string, opts Options) (*Stats, error) {
 	if err != nil {
 		return nil, fmt.Errorf("open java world: %w", err)
 	}
-	if dv := src.ReadDataVersion(); dv > data.JavaDataVersion {
+	if dv := src.ReadDataVersion(); dv > java.ReadFormatDataVersion {
+		opts.Logf("warning: this world was saved by Java DataVersion %d, newer than the save formats mcconv can read (%d).", dv, java.ReadFormatDataVersion)
+		opts.Logf("         Blocks or chunks may be lost; check for a newer mcconv.")
+	} else if dv > data.JavaDataVersion {
 		warnNewer(opts, fmt.Sprintf("Java DataVersion %d", dv))
 	}
+	bv := LatestBedrockVersion(data)
+	bedrock.SetTargetVersion(bv)
+	opts.Logf("writing for Bedrock %d.%d.%d", bv[0], bv[1], bv[2])
 	if err := ensureEmptyDir(dstDir); err != nil {
 		return nil, err
 	}
@@ -136,7 +142,7 @@ func JavaToBedrock(srcDir, dstDir string, opts Options) (*Stats, error) {
 	bc := newBlockConverter(data, true, blockOverrides(opts.Config, true), opts.Logf)
 	items := &itemConverter{t: data, toBedrock: true}
 	bc.be = &beConverter{t: data, items: items, toBedrock: true}
-	jc := &java.Codec{}
+	jc := &java.Codec{Complete: data.CompleteJavaBlock}
 	bcodec := &bedrock.Codec{Biomes: data, BlockVersion: bedrockBlockVersion(opts, data)}
 	ec := newEntityConverter(data, items, bc)
 	st := &Stats{}
@@ -467,6 +473,15 @@ func BedrockToJava(srcDir, dstDir string, opts Options) (*Stats, error) {
 		if t := opts.Config.Versions.JavaDataVersion; t > 0 && t < chunkDV {
 			chunkDV = t
 		}
+	}
+	// a game newer than the save format this code writes: write that format
+	// and let the game upgrade the world when it opens it
+	if chunkDV > java.WriteFormatDataVersion {
+		opts.Logf("writing the Java %s save format; Java %s upgrades the world when it opens it", java.WriteFormatName, opts.Config.Versions.JavaName)
+		chunkDV = java.WriteFormatDataVersion
+	}
+	if java.LevelDataVersion > java.WriteFormatDataVersion {
+		java.LevelDataVersion, java.LevelVersionName = java.WriteFormatDataVersion, java.WriteFormatName
 	}
 	jc := &java.Codec{DataVersion: int32(chunkDV), Target: target}
 	ec := newEntityConverter(data, items, bc)

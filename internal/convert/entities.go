@@ -9,6 +9,7 @@ import (
 	"unicode"
 
 	"mcconv/internal/bedrock"
+	"mcconv/internal/java"
 	"mcconv/internal/nbt"
 	"mcconv/internal/translate"
 	"mcconv/internal/world"
@@ -379,13 +380,11 @@ func (ec *entityConverter) javaEntity(e nbt.Compound, out *world.Chunk) []nbt.Co
 			a["Direction"] = int8(f)
 		}
 	case "falling_block":
-		if bs, ok := e.Compound("BlockState"); ok {
-			name, _ := bs.String("Name")
+		if bs, ok := e["BlockState"]; ok {
+			name, pp := java.BlockStateFields(bs)
 			props := map[string]any{}
-			if pp, ok := bs.Compound("Properties"); ok {
-				for k, v := range pp {
-					props[k] = v
-				}
+			for k, v := range pp {
+				props[k] = v
 			}
 			if b := ec.bc.lookup(translate.NewBlock(name, props)); b != nil && b.out != nil {
 				a["FallingBlock"] = bedrockBlockNBT(b.out)
@@ -706,11 +705,16 @@ func (ec *entityConverter) bedrockEntity(a nbt.Compound) nbt.Compound {
 		id = wood + kind
 		if ec.jf.older(dvBoatSplit) { // one boat entity with a wood type
 			id, boatType = ident, wood
-			if wood == "pale_oak" {
+			switch wood {
+			case "pale_oak":
 				boatType = "oak"
+			case "poplar":
+				boatType = "birch"
 			}
 		} else if !ec.jf.entity("minecraft:" + id) {
+			// woods newer than the target release
 			id = strings.Replace(id, "pale_oak", "dark_oak", 1)
+			id = strings.Replace(id, "poplar", "birch", 1)
 		}
 	}
 	if !ec.jf.entity("minecraft:" + id) {

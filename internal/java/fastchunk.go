@@ -225,11 +225,18 @@ func (fd *FastDecoder) blockStates(ch *world.Chunk) ([]uint32, []uint64) {
 			}
 			et, n := sc.ListHeader()
 			for i := 0; i < n; i++ {
-				if et != nbt.TagCompound {
+				var b *translate.Block
+				switch et {
+				case nbt.TagCompound:
+					b = fd.paletteEntry()
+				case nbt.TagString:
+					// 26.3+: a block without properties is just its name
+					fd.pairs = fd.pairs[:0]
+					b = fd.internBlock(sc.Bytes(), nil)
+				default:
 					sc.Skip(et)
 					continue
 				}
-				b := fd.paletteEntry()
 				idx, ok := fd.bkey[b]
 				if !ok {
 					idx = uint32(len(ch.Palette))
@@ -308,9 +315,10 @@ func (fd *FastDecoder) paletteEntry() *translate.Block {
 			break
 		}
 		switch {
-		case t == nbt.TagString && string(k) == "Name":
+		case t == nbt.TagString && (string(k) == "Name" || string(k) == "id" || string(k) == ""):
+			// "id" since 26.3; "" wraps a plain name in a mixed list
 			name = sc.Bytes()
-		case t == nbt.TagCompound && string(k) == "Properties":
+		case t == nbt.TagCompound && (string(k) == "Properties" || string(k) == "properties"):
 			for {
 				pt, pk := sc.Next()
 				if pt == nbt.TagEnd {
@@ -327,6 +335,11 @@ func (fd *FastDecoder) paletteEntry() *translate.Block {
 		}
 	}
 	fd.pairs = pairs
+	return fd.internBlock(name, pairs)
+}
+
+// internBlock returns the shared block for a name and its properties.
+func (fd *FastDecoder) internBlock(name []byte, pairs [][2][]byte) *translate.Block {
 	// insertion sort: palettes have few properties
 	for i := 1; i < len(pairs); i++ {
 		for j := i; j > 0 && string(pairs[j][0]) < string(pairs[j-1][0]); j-- {

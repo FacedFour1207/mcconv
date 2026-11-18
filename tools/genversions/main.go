@@ -5,9 +5,17 @@
 //
 //	git clone --depth 1 https://github.com/PrismarineJS/minecraft-data
 //	go run ./tools/genversions -mcdata minecraft-data/data
+//
+// Releases minecraft-data does not cover yet can be added from the game's
+// own data generator (java -DbundlerMainClass=net.minecraft.data.Main -jar
+// server.jar --reports) and its client jar (for the biome list):
+//
+//	go run ./tools/genversions -base internal/translate/data/java_versions.json.gz \
+//	    -add 26.2:4903 -reports generated/reports -jar 26.2.jar
 package main
 
 import (
+	"archive/zip"
 	"bytes"
 	"compress/gzip"
 	"encoding/json"
@@ -19,6 +27,7 @@ import (
 	"strings"
 
 	"mcconv/internal/translate"
+	"mcconv/internal/translate/gen"
 )
 
 // sets are the releases whose content is stored; a target version uses the
@@ -56,8 +65,18 @@ type named struct {
 func main() {
 	dir := flag.String("mcdata", "", "minecraft-data/data directory")
 	out := flag.String("o", "internal/translate/data/java_versions.json.gz", "output file")
+	base := flag.String("base", "", "start from this java_versions.json.gz instead of -mcdata")
+	add := flag.String("add", "", "add a set from the data generator: name:dataVersion")
+	reports := flag.String("reports", "", "data generator reports directory (with -add)")
+	clientJar := flag.String("jar", "", "client jar of that version, for its biomes (with -add)")
 	flag.Parse()
-	if err := run(*dir, *out); err != nil {
+	var err error
+	if *base != "" {
+		err = runAdd(*base, *add, *reports, *clientJar, *out)
+	} else {
+		err = run(*dir, *out)
+	}
+	if err != nil {
 		fmt.Fprintln(os.Stderr, "error:", err)
 		os.Exit(1)
 	}
@@ -135,6 +154,10 @@ func run(dir, out string) error {
 		}
 		vf.Sets = append(vf.Sets, set)
 	}
+	return write(vf, out)
+}
+
+func write(vf translate.JavaVersionFile, out string) error {
 	var buf bytes.Buffer
 	zw, _ := gzip.NewWriterLevel(&buf, gzip.BestCompression)
 	if err := json.NewEncoder(zw).Encode(vf); err != nil {
@@ -146,6 +169,79 @@ func run(dir, out string) error {
 	}
 	fmt.Printf("wrote %s (%d bytes, %d releases, %d sets)\n", out, buf.Len(), len(vf.Releases), len(vf.Sets))
 	return nil
+}
+
+// runAdd adds (or replaces) one set built from the game's data generator.
+func runAdd(base, spec, reports, clientJar, out string) error {
+	parts := strings.SplitN(spec, ":", 2)
+	if len(parts) != 2 || reports == "" || clientJar == "" {
+		return fmt.Errorf("-add wants name:dataVersion, with -reports and -jar")
+	}
+	var dv int
+	if _, err := fmt.Sscan(parts[1], &dv); err != nil {
+		return fmt.Errorf("data version %q: %v", parts[1], err)
+	}
+	f, err := os.Open(base)
+	if err != nil {
+		return err
+	}
+	zr, err := gzip.NewReader(f)
+	if err != nil {
+		f.Close()
+		return err
+	}
+	var vf translate.JavaVersionFile
+	err = json.NewDecoder(zr).Decode(&vf)
+	f.Close()
+	if err != nil {
+		return err
+	}
+	set := translate.JavaVersionSet{Name: parts[0], DataVersion: dv}
+	if set.Blocks, err = gen.JavaBlocks(filepath.Join(reports, "blocks.json")); err != nil {
+		return err
+	}
+	var reg map[string]struct {
+		Entries map[string]any `json:"entries"`
+	}
+	if err := readJSON(filepath.Join(reports, "registries.json"), &reg); err != nil {
+		return err
+	}
+	for kind, dst := range map[string]*[]string{"minecraft:item": &set.Items, "minecraft:entity_type": &set.Entities} {
+		for name := range reg[kind].Entries {
+			*dst = append(*dst, name)
+		}
+		if len(*dst) == 0 {
+			return fmt.Errorf("registries.json has no %s entries", kind)
+		}
+		sort.Strings(*dst)
+	}
+	// biomes are data driven: the vanilla data pack in the client jar
+	jar, err := zip.OpenReader(clientJar)
+	if err != nil {
+		return err
+	}
+	const biomeDir = "data/minecraft/worldgen/biome/"
+	for _, e := range jar.File {
+		rest, ok := strings.CutPrefix(e.Name, biomeDir)
+		if ok && strings.HasSuffix(rest, ".json") && !strings.Contains(rest, "/") {
+			set.Biomes = append(set.Biomes, "minecraft:"+strings.TrimSuffix(rest, ".json"))
+		}
+	}
+	jar.Close()
+	if len(set.Biomes) == 0 {
+		return fmt.Errorf("%s has no biomes", clientJar)
+	}
+	sort.Strings(set.Biomes)
+	sets := vf.Sets[:0]
+	for _, s := range vf.Sets {
+		if s.Name != set.Name {
+			sets = append(sets, s)
+		}
+	}
+	vf.Sets = append(sets, set)
+	sort.Slice(vf.Sets, func(i, j int) bool { return vf.Sets[i].DataVersion < vf.Sets[j].DataVersion })
+	fmt.Printf("%s: %d blocks, %d items, %d entities, %d biomes\n", set.Name, len(set.Blocks), len(set.Items), len(set.Entities), len(set.Biomes))
+	return write(vf, out)
 }
 
 func remove(l []string, s string) []string {
