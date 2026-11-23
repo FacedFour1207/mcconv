@@ -18,9 +18,10 @@ Double-click it, pick a world, press a button — that's it.
 1. Download `mcconv-windows-x64.zip` from [Releases](../../releases) and extract it anywhere.
 2. Double-click `mcconv.exe`.
    - If "Windows protected your PC" appears, click "More info" → "Run anyway" (shown for apps without a code signature).
-3. The Java and Bedrock worlds on your PC are listed on the left. Click the world you want to convert.
+3. The Java and Bedrock worlds on your PC are listed. Click the world you want to convert.
    - For a world stored elsewhere, use "Open folder" (フォルダから開く).
-4. Press "Start conversion" (変換を開始) on the right.
+4. The conversion settings page opens. Check the settings and press "Start conversion" (変換を開始).
+   - If you picked the wrong world, "Choose another world" (ワールドを選び直す) at the top right goes back to the list.
 5. When it finishes, start the game. The converted world is in your world list.
 
 The original world is never modified. Do not open the world in the game while it is being converted.

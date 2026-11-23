@@ -368,6 +368,13 @@ select.input option:disabled { color: var(--text-3); }
 @keyframes spin { from { transform: rotate(0); } to { transform: rotate(360deg); } }
 .brand p { white-space: nowrap; }
 @media (max-width: 1080px) { main { grid-template-columns: minmax(0, 1fr) 350px; } }
+/* two pages: 1 = choose a world, 2 = settings / progress / result */
+main[data-page="pick"] { grid-template-columns: minmax(0, 1fr); }
+main[data-page="pick"] .side { display: none; }
+main[data-page="setup"] { grid-template-columns: minmax(0, 720px); justify-content: center; }
+main[data-page="setup"] #picker { display: none; }
+main .panel { animation: rise .25s ease both; }
+.btn[hidden] { display: none; }
 @media (max-width: 820px) {
   body { overflow: auto; }
   .app { height: auto; min-height: 100%; }
@@ -400,6 +407,7 @@ select.input option:disabled { color: var(--text-3); }
     <symbol id="i-stop" viewBox="0 0 24 24"><rect x="6.5" y="6.5" width="11" height="11" rx="2"/></symbol>
     <symbol id="i-cube" viewBox="0 0 24 24"><path d="M12 3 4 7.5v9L12 21l8-4.5v-9z"/><path d="M4 7.5 12 12l8-4.5M12 12v9"/></symbol>
     <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
+    <symbol id="i-back" viewBox="0 0 24 24"><path d="M19 12H5M11 6l-6 6 6 6"/></symbol>
   </defs>
 </svg>
 
@@ -427,14 +435,14 @@ select.input option:disabled { color: var(--text-3); }
     <button class="icon-btn" id="btn-settings" title="設定"><svg class="icon"><use href="#i-gear"/></svg></button>
   </header>
 
-  <main>
+  <main data-page="pick">
     <!-- world picker -->
     <section class="panel" id="picker">
       <div class="panel-head">
         <div class="step">1</div>
         <div>
           <h2>変換するワールドを選ぶ</h2>
-          <div class="sub">ゲームのワールドフォルダから自動で見つけています</div>
+          <div class="sub">ワールドをクリックすると、次の画面で変換の設定をします</div>
         </div>
         <div class="spacer"></div>
         <button class="btn ghost" id="btn-reload" title="再読み込み"><svg class="icon"><use href="#i-refresh"/></svg></button>
@@ -455,6 +463,8 @@ select.input option:disabled { color: var(--text-3); }
       <div class="panel-head">
         <div class="step">2</div>
         <div><h2 id="side-title">変換の設定</h2><div class="sub" id="side-sub">ワールドを選ぶと設定できます</div></div>
+        <div class="spacer"></div>
+        <button class="btn ghost" id="btn-back" title="ワールドを選び直す"><svg class="icon"><use href="#i-back"/></svg>ワールドを選び直す</button>
       </div>
       <div class="side-body" id="side"></div>
     </section>
@@ -507,6 +517,7 @@ const S = {
   sel: null, name: '', dests: [], dest: '', workers: 0, maxWorkers: 8, mem: 0, totalMem: 0, vlists: null,
   dims: new Set(DIMS.map(d => d[0])), comp: 1, allChunks: false, adv: false,
   view: 'setup', // setup | running | done | error | canceled
+  page: 'pick',  // pick (1: choose a world) | setup (2: settings, progress, result)
   job: null, loaded: false, javaVer: '', force: false,
   repl: { bedrock: [], java: [] }, // block replacement rows by target edition
   replErr: { bedrock: [], java: [] }, replOpen: false, blockIDs: null,
@@ -601,9 +612,22 @@ $('#btn-pick').onclick = async () => {
   } catch (e) { toast(errText(e), true); }
 };
 
+function setPage(p) {
+  S.page = p;
+  $('main').dataset.page = p;
+  window.scrollTo(0, 0);
+}
+$('#btn-back').onclick = () => {
+  if (S.view === 'running') return;
+  S.view = 'setup';
+  setPage('pick');
+  renderGrid(); renderSide();
+};
+
 async function select(w) {
   S.sel = w; S.name = w.name; S.view = 'setup'; S.force = false;
   renderGrid();
+  setPage('setup');
   const target = w.edition === 'java' ? 'bedrock' : 'java';
   S.dests = await mcDestinations(target);
   S.dest = S.dests.length ? S.dests[0].path : '';
@@ -674,12 +698,13 @@ function newerHTML(w) {
 function renderSide() {
   const side = $('#side');
   $('#picker').classList.toggle('disabled-overlay', S.view === 'running');
+  $('#btn-back').hidden = S.view === 'running';
   if (S.view === 'running') return renderRunning(true);
   if (S.view === 'done' || S.view === 'error' || S.view === 'canceled') return renderResult();
   $('#side-title').textContent = '変換の設定';
   $('#side-sub').textContent = S.sel ? `${ED[S.sel.edition]} → ${ED[S.sel.edition === 'java' ? 'bedrock' : 'java']}` : 'ワールドを選ぶと設定できます';
   if (!S.sel) {
-    side.innerHTML = flowHTML() + `<div class="empty"><b>左からワールドを選んでください</b>Java版 のワールドは 統合版 に、統合版 のワールドは Java版 に変換されます。元のワールドは変更されません。</div>`;
+    side.innerHTML = flowHTML() + `<div class="empty"><b>ワールドを選んでください</b>Java版 のワールドは 統合版 に、統合版 のワールドは Java版 に変換されます。元のワールドは変更されません。</div>`;
     return;
   }
   const destOpts = S.dests.map(d => `<option value="${esc(d.path)}" ${d.path === S.dest ? 'selected' : ''}>${esc(d.label)}</option>`).join('')
@@ -945,7 +970,7 @@ function renderResult() {
     $('#btn-retry').onclick = () => { S.view = 'setup'; renderSide(); };
   }
   const again = $('#btn-again');
-  if (again) again.onclick = () => { S.view = 'setup'; S.sel = null; renderGrid(); renderSide(); };
+  if (again) again.onclick = () => { S.view = 'setup'; S.sel = null; setPage('pick'); renderGrid(); renderSide(); };
 }
 
 /* ---------- events from Go ---------- */
