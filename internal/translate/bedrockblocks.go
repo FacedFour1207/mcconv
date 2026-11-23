@@ -149,3 +149,18 @@ func (t *Tables) JavaCurrentName(name string) string {
 	}
 	return name
 }
+
+// JavaOfBedrock returns the Java block id a Bedrock block converts to (the
+// one with the same id if several do); ok is false for Bedrock-only blocks.
+func (t *Tables) JavaOfBedrock(name string) (string, bool) {
+	l := t.byBedrock[name]
+	if len(l) == 0 {
+		return "", false
+	}
+	for _, c := range l {
+		if n := t.JavaBlock(c.java).Name(); n == name {
+			return n, true
+		}
+	}
+	return t.JavaBlock(l[0].java).Name(), true
+}

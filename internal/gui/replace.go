@@ -55,21 +55,30 @@ func (a *App) tables() (*translate.Tables, error) {
 	return t, nil
 }
 
-// BlockIDs lists the block ids of both editions (without "minecraft:")
-// for the suggestions of the replacement rows.
-func (a *App) BlockIDs() (map[string][]string, error) {
+// BlockIDs lists the blocks of both editions (ids without "minecraft:")
+// with their Japanese names, for the suggestions of the replacement rows.
+func (a *App) BlockIDs() (map[string][]BlockInfo, error) {
 	t, err := a.tables()
 	if err != nil {
 		return nil, err
 	}
-	short := func(l []string) []string {
-		out := make([]string, len(l))
-		for i, n := range l {
-			out[i] = strings.TrimPrefix(n, "minecraft:")
-		}
-		return out
+	lang := javaLangJA()
+	var java, bedrock []BlockInfo
+	for _, n := range t.JavaBlockNames() {
+		java = append(java, BlockInfo{ID: short(n), Name: javaName(lang, n)})
 	}
-	return map[string][]string{"java": short(t.JavaBlockNames()), "bedrock": short(t.BedrockBlockNames())}, nil
+	for _, n := range t.BedrockBlockNames() {
+		bi := BlockInfo{ID: short(n)}
+		if j, ok := t.JavaOfBedrock(n); ok {
+			bi.Name = javaName(lang, j)
+		} else if t.HasJavaBlock(n) {
+			bi.Name = javaName(lang, n)
+		} else {
+			bi.Name = bedrockOnlyJA[short(n)]
+		}
+		bedrock = append(bedrock, bi)
+	}
+	return map[string][]BlockInfo{"java": java, "bedrock": bedrock}, nil
 }
 
 // CheckReplace returns a message for each row that cannot be used ("" if

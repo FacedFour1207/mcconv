@@ -60,7 +60,7 @@ Sign text, item names, equipment, boats, furnaces, level.dat and the folder layo
 In the conversion settings, open "Block replacement" (ブロックの置き換え), press "Add row" (行を追加), and enter a source block ID on the left and the replacement block ID on the right.
 Example for Java → Bedrock: `barrier` → `invisible_bedrock`.
 
-- The left ID is from the source edition, the right ID from the target edition. Suggestions appear as you type, and `minecraft:` can be left out.
+- The left ID is from the source edition, the right ID from the target edition. Clicking a field opens a block list that can be filtered by ID or Japanese name (the names are read from the installed Java Edition), and `minecraft:` can be left out.
 - For Java → Bedrock, a Java ID on the right is converted to the matching Bedrock block.
 - Properties such as facing, half or waterlogged are kept when the replacement block has them; otherwise it gets its default state.
 - The contents of replaced blocks (chest items, sign text, ...) are dropped.
