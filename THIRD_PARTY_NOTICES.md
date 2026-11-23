@@ -11,6 +11,7 @@ mcconv の実行ファイルには、以下のライブラリとデータが含�
 | Data / データ | Source / 提供元 | License / ライセンス |
 |---|---|---|
 | Java ⇔ Bedrock block, item and biome mappings / Java ⇔ 統合版のブロック・アイテム・バイオーム対応表 | [GeyserMC/mappings](https://github.com/GeyserMC/mappings) | MIT (full text below / 全文は下記) |
+| List of every Bedrock block and its states / 統合版の全ブロックと状態の一覧 | [GeyserMC/Geyser](https://github.com/GeyserMC/Geyser) (block_palette) | MIT (same text as GeyserMC/mappings below / 下記の GeyserMC/mappings と同じ) |
 | Bedrock biome IDs, banner pattern codes, entity IDs / 統合版のバイオーム ID・旗の模様コード・エンティティ ID | [pmmp/BedrockData](https://github.com/pmmp/BedrockData) | CC0 1.0 (public domain / パブリックドメイン) |
 | Schema for upgrading old Bedrock block states / 統合版の古いブロック状態を更新するスキーマ | [BedrockBlockUpgradeSchema](https://github.com/opencollab-incubator/BedrockBlockUpgradeSchema) | CC0 1.0 (public domain / パブリックドメイン) |
 | Java block state list / Java版のブロック状態一覧 | Output of Minecraft's own data generator (`--reports`) / Minecraft 自身のデータジェネレーターの出力 | — |
@@ -52,7 +53,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 ```
 
-### GeyserMC/mappings
+### GeyserMC/mappings, GeyserMC/Geyser
 
 ```
 The MIT License

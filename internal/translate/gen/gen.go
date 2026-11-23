@@ -26,6 +26,7 @@ type Options struct {
 	GeyserDir       string // GeyserMC/mappings: blocks.nbt, items.json, biomes.json, README.md
 	PmmpDir         string // pmmp/BedrockData: biome_id_map.json, banner_patterns.json
 	UpgradeDir      string // BedrockBlockUpgradeSchema/nbt_upgrade_schema
+	BedrockPalette  string // optional: GeyserMC/Geyser block_palette.*.nbt (every Bedrock block state)
 }
 
 type reportBlock struct {
@@ -189,12 +190,30 @@ func Build(o Options) ([]byte, error) {
 		json.Unmarshal(tf.UpgradeSchemas[len(tf.UpgradeSchemas)-1], &last)
 		tf.BedrockBlockVersion = last.MaxVersionMajor<<24 | last.MaxVersionMinor<<16 | last.MaxVersionPatch<<8 | last.MaxVersionRevision
 	}
+	if o.BedrockPalette != "" {
+		gz, err := os.ReadFile(o.BedrockPalette)
+		if err != nil {
+			return nil, err
+		}
+		if tf.BedrockBlocks, err = BedrockBlocks(gz); err != nil {
+			return nil, err
+		}
+	}
 	tf.Sources = []string{
 		"Java block states: Minecraft data generator report (" + o.JavaVersion + ")",
 		"Block, item and biome mappings: GeyserMC/mappings (MIT License, https://github.com/GeyserMC/mappings)",
 		"Bedrock biome ids, banner patterns, entity ids: pmmp/BedrockData (CC0, https://github.com/pmmp/BedrockData)",
 		"Block state upgrade schemas: BedrockBlockUpgradeSchema (CC0, https://github.com/opencollab-incubator/BedrockBlockUpgradeSchema)",
 	}
+	if len(tf.BedrockBlocks) > 0 {
+		tf.Sources = append(tf.Sources, paletteSource)
+	}
+	return encode(tf)
+}
+
+const paletteSource = "Bedrock block states: GeyserMC/Geyser block palette (MIT License, https://github.com/GeyserMC/Geyser)"
+
+func encode(tf *translate.TableFile) ([]byte, error) {
 
 	var out bytes.Buffer
 	zw, _ := gzip.NewWriterLevel(&out, gzip.BestCompression)

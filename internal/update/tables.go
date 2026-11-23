@@ -25,6 +25,7 @@ const (
 	pmmpRaw     = "https://raw.githubusercontent.com/pmmp/BedrockData/master/"
 	schemaAPI   = "https://api.github.com/repos/opencollab-incubator/BedrockBlockUpgradeSchema/contents/"
 	schemaRaw   = "https://raw.githubusercontent.com/opencollab-incubator/BedrockBlockUpgradeSchema/master/"
+	paletteRaw  = "https://raw.githubusercontent.com/GeyserMC/Geyser/master/core/src/main/resources/bedrock/"
 	httpTimeout = 60 * time.Second
 )
 
@@ -99,13 +100,15 @@ func UpdateTables(dataDir, minecraftDir string, logf func(string, ...any)) (*Tab
 		return nil, err
 	}
 
+	palette := downloadPalette(bedrockVer, tmp, logf)
+
 	logf("Reading Java %s block states with the game's data generator...", javaVer)
 	report, dv, err := runDataGenerator(minecraftDir, javaVer, filepath.Join(tmp, "gen"))
 	if err != nil {
 		return nil, err
 	}
 	data, err := gen.Build(gen.Options{Report: report, JavaVersion: javaVer, JavaDataVersion: dv,
-		GeyserDir: geyser, PmmpDir: pmmp, UpgradeDir: schemas})
+		GeyserDir: geyser, PmmpDir: pmmp, UpgradeDir: schemas, BedrockPalette: palette})
 	if err != nil {
 		return nil, err
 	}
@@ -120,6 +123,24 @@ func UpdateTables(dataDir, minecraftDir string, logf func(string, ...any)) (*Tab
 		return nil, err
 	}
 	return &TablesResult{JavaVersion: javaVer, JavaDataVersion: dv, BedrockVersion: bedrockVer, Path: out}, nil
+}
+
+// downloadPalette fetches GeyserMC's list of every Bedrock block state for
+// the Bedrock version (block_palette.26_60.nbt for 1.26.60). It is optional:
+// without it the built-in list is used. Returns "" if it is not available.
+func downloadPalette(bedrockVer, dir string, logf func(string, ...any)) string {
+	parts := strings.Split(bedrockVer, ".")
+	if len(parts) >= 3 && parts[0] == "1" {
+		parts = parts[1:3]
+	}
+	name := "block_palette." + strings.Join(parts, "_") + ".nbt"
+	logf("Downloading the Bedrock block list (%s)...", name)
+	dst := filepath.Join(dir, name)
+	if err := download(paletteRaw+name, dst); err != nil {
+		logf("  not available (%v); the built-in list is used", err)
+		return ""
+	}
+	return dst
 }
 
 func downloadSchemas(dst string) error {

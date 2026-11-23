@@ -13,6 +13,11 @@
 //	go run ./tools/gendata -report blocks.json -java 26.2 -java-dv 4903 \
 //	    -geyser mappings/ -pmmp BedrockData/ -upgrade nbt_upgrade_schema/ -o tables.json.gz
 //
+// Add the list of every Bedrock block (GeyserMC/Geyser block_palette.*.nbt,
+// MIT) with -palette, or add it to an existing file without rebuilding:
+//
+//	go run ./tools/gendata -patch internal/translate/data/tables.json.gz -palette block_palette.26_60.nbt
+//
 // mcconv update-data does the same at run time (see internal/update).
 package main
 
@@ -32,9 +37,23 @@ func main() {
 	flag.StringVar(&o.GeyserDir, "geyser", "", "GeyserMC/mappings checkout")
 	flag.StringVar(&o.PmmpDir, "pmmp", "", "pmmp/BedrockData checkout")
 	flag.StringVar(&o.UpgradeDir, "upgrade", "", "BedrockBlockUpgradeSchema nbt_upgrade_schema directory")
+	flag.StringVar(&o.BedrockPalette, "palette", "", "GeyserMC/Geyser block_palette.*.nbt (optional)")
+	patch := flag.String("patch", "", "add the -palette block list to this existing table file instead of building one")
 	out := flag.String("o", "internal/translate/data/tables.json.gz", "output file")
 	flag.Parse()
-	data, err := gen.Build(o)
+	var data []byte
+	var err error
+	if *patch != "" {
+		var tables, palette []byte
+		if tables, err = os.ReadFile(*patch); err == nil {
+			if palette, err = os.ReadFile(o.BedrockPalette); err == nil {
+				data, err = gen.AddBedrockBlocks(tables, palette)
+			}
+		}
+		*out = *patch
+	} else {
+		data, err = gen.Build(o)
+	}
 	if err != nil {
 		fmt.Fprintln(os.Stderr, "error:", err)
 		os.Exit(1)

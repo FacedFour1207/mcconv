@@ -90,6 +90,8 @@ func Run() error {
 	bind("mcCancel", app.Cancel)
 	bind("mcUpdateData", app.UpdateData)
 	bind("mcSaveVersions", app.SaveVersions)
+	bind("mcBlockIDs", app.BlockIDs)
+	bind("mcCheckReplace", app.CheckReplace)
 	bind("mcPickFolder", func(title, initial string) string { return pickFolder(hwnd, title, initial) })
 	bind("mcOpen", openInExplorer)
 	bind("mcSetDark", func(dark bool) { setDarkTitleBar(hwnd, dark) })

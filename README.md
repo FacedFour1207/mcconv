@@ -28,6 +28,7 @@ Minecraft の **Java版のワールドを統合版 (Bedrock) に**、**統合版
 - 選んだワールドのサムネイルとバージョンが「変換の設定」に表示されます。
 - 統合版 → Java版 では、書き出す Java版 のバージョンを「変換の設定」で選べます。Java版 → 統合版 は、いつも最新の統合版向けに書き出します。
 - mcconv の対応より新しいバージョンのワールドを選ぶと、警告が出ます。
+- 「ブロックの置き換え」で、特定のブロックを別のブロックに変えて変換できます (下記)。
 
 ### マインクラフトがアップデートされたら
 
@@ -51,6 +52,20 @@ Java版 の新しいバージョン向けには、mcconv が書き方を知っ�
 統合版 → Java版 の変換では、「変換の設定」の「書き出す Java版 のバージョン」で 1.21.1 などの古いバージョンを選べます (コマンドラインでは `-java-version 1.21.1`)。
 そのバージョンにないブロック・アイテム・バイオームは似たものに置き換わり (例: ペールオーク → ダークオーク、ペールガーデン → 暗い森)、置き換えたブロックは変換後に一覧で表示されます。そのバージョンにないエンティティは変換されません。
 看板の文字・アイテム名・装備・ボート・かまど・level.dat・フォルダ構成も、選んだバージョンの形式で書き出します。
+
+### ブロックの置き換え
+
+「変換の設定」の「ブロックの置き換え」で「行を追加」を押し、左に元のブロックID、右に置き換え先のブロックIDを入力します。
+例: Java版 → 統合版 で `barrier` → `invisible_bedrock` (バリア → 透明な岩盤)。
+
+- 左は変換元のエディション、右は変換先のエディションのブロックIDです。入力すると候補が出ます。`minecraft:` は省略できます。
+- Java版 → 統合版 では、右に Java版 のIDを書いても、統合版の対応するブロックに直して書き出します。
+- 向き・上下・水没などの設定は、置き換え先にも同じものがあれば引き継ぎ、なければ初期の状態になります。
+- 置き換えたブロックの中身 (チェストのアイテム、看板の文字など) は消えます。
+- 存在しないIDは赤字で表示され、直すまで変換を始められません。変換後に、置き換えたブロックの数を表示します。
+- 置き換えるのは地形のブロックだけです。インベントリ内のアイテムは変わりません。
+
+コマンドラインでは `-replace barrier=invisible_bedrock,chest=barrel` のように指定します。
 
 ## 変換されるもの
 
@@ -85,6 +100,7 @@ mcconv update-data          (ゲームのアップデート後に対応表を更
 | `-all-chunks` | 生成途中のチャンクも変換する |
 | `-v` | 各段階の所要時間を表示 |
 | `-java-version 1.21.1` | 書き出す Java版のバージョン (1.21.1 以降。既定: `versions.json` の値、なければ対応表の版) |
+| `-replace 元=先,元=先` | ブロックを置き換える (例: `barrier=invisible_bedrock`。左は変換元、右は変換先のエディションのID) |
 | `-data DIR` | 設定・更新データのフォルダ (既定: exe と同じ場所の `mcconv-data`) |
 
 ### 設定ファイル (mcconv-data フォルダ)
@@ -196,6 +212,7 @@ cd cmd/mcconv && go run github.com/tc-hib/go-winres@latest make --arch amd64,arm
 |---|---|---|
 | Java ⇔ 統合版のブロック・アイテム・バイオーム対応表 | [GeyserMC/mappings](https://github.com/GeyserMC/mappings) | MIT |
 | 統合版のバイオーム ID・旗の模様・エンティティ ID | [pmmp/BedrockData](https://github.com/pmmp/BedrockData) | CC0 |
+| 統合版の全ブロックと状態の一覧 | [GeyserMC/Geyser](https://github.com/GeyserMC/Geyser) | MIT |
 | 統合版の古いブロック状態の更新規則 | [BedrockBlockUpgradeSchema](https://github.com/opencollab-incubator/BedrockBlockUpgradeSchema) | CC0 |
 | Java版のブロック状態一覧 | Minecraft のデータジェネレーター | — |
 | 古い Java版 (1.21.1〜26.1) のブロック・アイテム・バイオーム・エンティティ一覧 | [PrismarineJS/minecraft-data](https://github.com/PrismarineJS/minecraft-data) | MIT |

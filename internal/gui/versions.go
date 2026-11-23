@@ -48,7 +48,7 @@ type versionCache struct {
 
 // versionLists builds the lists and emits them as a "versions" event.
 func (a *App) versionLists() {
-	t := a.tables()
+	t, _ := a.tables()
 	cachePath := filepath.Join(a.dataDir, "version_lists.json")
 	var cache versionCache
 	if b, err := os.ReadFile(cachePath); err == nil {
@@ -118,19 +118,6 @@ func (a *App) versionLists() {
 		ev["readJavaDV"] = javaworld.ReadFormatDataVersion
 	}
 	a.emit(ev)
-}
-
-// tables returns the tables conversions will use (data directory or built-in).
-func (a *App) tables() *translate.Tables {
-	src := translate.BuiltinTables()
-	if b, err := os.ReadFile(filepath.Join(a.dataDir, "tables.json.gz")); err == nil {
-		src = b
-	}
-	t, err := translate.Parse(src)
-	if err != nil {
-		return nil
-	}
-	return t
 }
 
 func fetchJavaVersions(c *http.Client) ([]JavaOption, error) {

@@ -252,6 +252,19 @@ details.adv summary .chev { margin-left: auto; transition: transform .2s; }
 details.adv[open] summary .chev { transform: rotate(180deg); }
 details.adv .inner { padding: 2px 14px 14px; display: flex; flex-direction: column; gap: 14px; }
 .chips { display: flex; gap: 6px; flex-wrap: wrap; }
+details.adv summary .count { min-width: 20px; height: 20px; padding: 0 6px; border-radius: 99px; background: var(--accent-soft); color: var(--accent); font-size: 11.5px; display: inline-grid; place-items: center; }
+details.adv summary .count[hidden] { display: none; }
+.repl-rows { display: flex; flex-direction: column; gap: 8px; }
+.repl-rows:empty { display: none; }
+.repl-row { display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr) auto; gap: 6px; align-items: center; }
+.repl-row .input { height: 36px; font-size: 13px; padding: 0 10px; }
+.repl-row .to { color: var(--text-3); font-size: 13px; }
+.repl-row .icon-btn { width: 32px; height: 32px; border-radius: 9px; }
+.repl-row.bad .input { border-color: var(--danger); }
+.repl-err { grid-column: 1 / -1; font-size: 12px; color: var(--danger); line-height: 1.45; }
+.repl-err:empty { display: none; }
+.replbox { background: var(--surface-2); border: 1px solid var(--border); border-radius: 13px; padding: 11px 13px; font-size: 12.5px; line-height: 1.7; width: 100%; text-align: left; word-break: break-all; }
+.replbox .k { font-size: 11.5px; color: var(--text-3); font-weight: 600; }
 .chip {
   display: inline-flex; align-items: center; gap: 6px; height: 32px; padding: 0 12px; border-radius: 99px;
   border: 1px solid var(--border-strong); background: transparent; cursor: pointer; font-size: 12.5px; font-weight: 600; color: var(--text-2);
@@ -495,6 +508,8 @@ const S = {
   dims: new Set(DIMS.map(d => d[0])), comp: 1, allChunks: false, adv: false,
   view: 'setup', // setup | running | done | error | canceled
   job: null, loaded: false, javaVer: '', force: false,
+  repl: { bedrock: [], java: [] }, // block replacement rows by target edition
+  replErr: { bedrock: [], java: [] }, replOpen: false, blockIDs: null,
 };
 
 function toast(msg, err) {
@@ -671,7 +686,7 @@ function renderSide() {
     + `<option value="__pick">別のフォルダを選ぶ…</option>`;
   const jt = S.sel.edition === 'bedrock' ? javaTargets() : [];
   // Java format changes can lose whole chunks (26.3), so Java needs a confirmation
-  const blocked = tooNew(S.sel) && S.sel.edition === 'java' && !S.force;
+  const blocked = startBlocked();
   side.innerHTML = flowHTML() + newerHTML(S.sel) + `
     ${S.sel.edition === 'bedrock' ? `<div class="field"><label for="f-jver">書き出す Java版 のバージョン</label>
       <select class="input" id="f-jver">${jt.length ? jt.map(o => `<option value="${esc(o.name)}" ${o.name === javaTarget() ? 'selected' : ''}>${esc(o.name)}${o.installed ? ' (インストール済み)' : ''}${o.name === S.vlists.tablesJava ? ' ★ 最新' : ''}</option>`).join('') : '<option>読み込み中…</option>'}</select>
@@ -683,7 +698,8 @@ function renderSide() {
       <div class="path">${esc(S.dest)}</div>
       ${S.dests.find(d => d.path === S.dest && d.game) ? `<div class="hint">ゲームのワールド一覧にそのまま表示されます。</div>` : ''}
     </div>
-    <details class="adv" ${S.adv ? 'open' : ''}>
+    ${replHTML()}
+    <details class="adv" id="adv" ${S.adv ? 'open' : ''}>
       <summary>${icon('sliders')}詳細設定${icon('chev', 'chev')}</summary>
       <div class="inner">
         <div class="field"><span class="label">ディメンション</span>
@@ -707,7 +723,7 @@ function renderSide() {
   const gu = $('#btn-goupdate');
   if (gu) gu.onclick = () => openDrawer(true);
   const fc = $('#f-force');
-  if (fc) fc.onchange = e => { S.force = e.target.checked; $('#btn-start').disabled = !S.force; };
+  if (fc) fc.onchange = e => { S.force = e.target.checked; updateStartBtn(); };
   $('#f-name').oninput = e => { S.name = e.target.value; side.querySelectorAll('.flow .nm')[1].textContent = S.name || S.sel.name; };
   $('#f-dest').onchange = async e => {
     if (e.target.value === '__pick') {
@@ -719,7 +735,8 @@ function renderSide() {
     } else S.dest = e.target.value;
     renderSide();
   };
-  side.querySelector('details').ontoggle = e => { S.adv = e.target.open; };
+  $('#adv').ontoggle = e => { S.adv = e.target.open; };
+  bindRepl();
   side.querySelectorAll('[data-dim]').forEach(b => b.onclick = () => {
     const k = b.dataset.dim;
     S.dims.has(k) ? S.dims.delete(k) : S.dims.add(k);
@@ -733,6 +750,100 @@ function renderSide() {
   $('#btn-start').onclick = start;
 }
 
+/* ---------- block replacement ---------- */
+function replTarget() { return S.sel && S.sel.edition === 'java' ? 'bedrock' : 'java'; }
+function replRows() { return S.repl[replTarget()]; }
+function replErrs() { return S.replErr[replTarget()]; }
+const shortID = s => s.trim().toLowerCase().replace(/^minecraft:/, '');
+function startBlocked() {
+  return (tooNew(S.sel) && S.sel.edition === 'java' && !S.force) || replErrs().some(Boolean);
+}
+function updateStartBtn() { const b = $('#btn-start'); if (b) b.disabled = startBlocked(); }
+function replCount() { return replRows().filter(r => r.from.trim() && r.to.trim()).length; }
+function replHTML() {
+  const rows = replRows(), src = S.sel.edition, dst = replTarget(), n = replCount();
+  return `<details class="adv" id="repl" ${S.replOpen || rows.length ? 'open' : ''}>
+    <summary>${icon('cube')}ブロックの置き換え<span class="count" id="repl-count" ${n ? '' : 'hidden'}>${n}</span>${icon('chev', 'chev')}</summary>
+    <div class="inner">
+      <div class="hint">左に ${ED[src]} のブロックID、右に ${ED[dst]} のブロックIDを入力すると、そのブロックを置き換えて変換します (「minecraft:」は省略できます)。向きなどの設定は、置き換え先にも同じものがあれば引き継ぎます。置き換えたブロックの中身 (チェストのアイテムなど) は消えます。</div>
+      <div class="repl-rows">${rows.map((r, i) => `<div class="repl-row ${replErrs()[i] ? 'bad' : ''}" data-i="${i}">
+        <input class="input" list="dl-${src}" data-k="from" value="${esc(r.from)}" aria-label="${i + 1} 行目の元のブロック (${ED[src]})" placeholder="元のブロック" spellcheck="false" autocomplete="off">
+        <span class="to" aria-hidden="true">→</span>
+        <input class="input" list="dl-${dst}" data-k="to" value="${esc(r.to)}" aria-label="${i + 1} 行目の置き換え先 (${ED[dst]})" placeholder="置き換え先" spellcheck="false" autocomplete="off">
+        <button class="icon-btn" data-del="${i}" title="この行を消す" aria-label="${i + 1} 行目を消す">${icon('x')}</button>
+        <div class="repl-err" role="alert">${esc(replErrs()[i] || '')}</div></div>`).join('')}</div>
+      <button class="btn" id="btn-repl-add">${icon('plus')}行を追加</button>
+    </div></details>`;
+}
+function bindRepl() {
+  const box = $('#repl');
+  if (!box) return;
+  box.ontoggle = e => { S.replOpen = e.target.open; };
+  box.querySelectorAll('.repl-row input').forEach(inp => inp.oninput = e => {
+    const i = +e.target.closest('.repl-row').dataset.i;
+    replRows()[i][e.target.dataset.k] = e.target.value;
+    const n = replCount(), c = $('#repl-count');
+    c.textContent = n; c.hidden = !n;
+    savePrefs(); checkReplSoon();
+  });
+  box.querySelectorAll('[data-del]').forEach(b => b.onclick = () => {
+    replRows().splice(+b.dataset.del, 1);
+    replErrs().splice(+b.dataset.del, 1);
+    savePrefs(); renderSide(); checkRepl();
+  });
+  $('#btn-repl-add').onclick = () => {
+    replRows().push({ from: '', to: '' });
+    S.replOpen = true; savePrefs(); renderSide();
+    const l = $('#repl').querySelectorAll('.repl-row input[data-k="from"]');
+    if (l.length) l[l.length - 1].focus();
+  };
+  loadBlockIDs();
+  if (replRows().length) checkReplSoon();
+}
+// asks Go which rows name unknown blocks
+let replTimer = 0, replSeq = 0;
+function checkReplSoon() { clearTimeout(replTimer); replTimer = setTimeout(checkRepl, 200); }
+async function checkRepl() {
+  if (!S.sel || !window.mcCheckReplace) return;
+  const seq = ++replSeq, target = replTarget(), rows = replRows();
+  let errs = [];
+  try { errs = await mcCheckReplace(target, rows) || []; } catch (e) { errs = rows.map(() => ''); }
+  if (seq !== replSeq) return;
+  S.replErr[target] = errs;
+  if (S.view !== 'setup' || replTarget() !== target) return;
+  document.querySelectorAll('#repl .repl-row').forEach(r => {
+    const m = errs[+r.dataset.i] || '';
+    r.classList.toggle('bad', !!m);
+    r.querySelector('.repl-err').textContent = m;
+  });
+  updateStartBtn();
+}
+// block id suggestions (datalists shared by every row)
+async function loadBlockIDs() {
+  if (S.blockIDs || !window.mcBlockIDs) return;
+  S.blockIDs = 'loading';
+  try {
+    const ids = await mcBlockIDs();
+    for (const ed of ['java', 'bedrock']) {
+      const dl = document.createElement('datalist');
+      dl.id = 'dl-' + ed;
+      dl.innerHTML = ids[ed].map(n => `<option value="${esc(n)}">`).join('');
+      document.body.append(dl);
+    }
+    S.blockIDs = ids;
+  } catch (e) { S.blockIDs = null; }
+}
+function replacedHTML(j, st) {
+  const m = st.replaced || {}, keys = Object.keys(m).sort();
+  if (!keys.length) return '';
+  const to = {};
+  (j.req.replace || []).forEach(r => { to[shortID(r.from)] = shortID(r.to); });
+  return `<div class="replbox"><div class="k">置き換えたブロック</div>${keys.map(k => {
+    const s = shortID(k);
+    return `<div>${esc(s)}${to[s] ? ` → ${esc(to[s])}` : ''}: <b>${fmtN(m[k])}</b> 個</div>`;
+  }).join('')}</div>`;
+}
+
 async function start() {
   const w = S.sel;
   const req = {
@@ -740,6 +851,7 @@ async function start() {
     destRoot: S.dest, dims: DIMS.map(d => d[0]).filter(d => S.dims.has(d)),
     workers: S.workers, compression: S.comp, allChunks: S.allChunks, memoryMB: S.mem,
     javaVersion: w.edition === 'bedrock' ? javaTarget() : '',
+    replace: replRows().filter(r => r.from.trim() || r.to.trim()).map(r => ({ from: r.from.trim(), to: r.to.trim() })),
   };
   try {
     const out = await mcStart(req);
@@ -810,6 +922,7 @@ function renderResult() {
         <div class="stat"><div class="k">平均速度</div><div class="v">${secs > 0 ? fmtN(Math.round((st.chunks + st.skipped) / secs)) : '—'} <small>チャンク/秒</small></div></div>
         <div class="stat"><div class="k">ブロックエンティティ</div><div class="v">${fmtN(st.blockEntities)}</div></div>
       </div>
+      ${replacedHTML(j, st)}
       ${st.failed ? `<div class="errbox">${fmtN(st.failed)} 個のチャンクは変換できませんでした (ログを確認してください)。</div>` : ''}
       <div class="path">${esc(j.out)}</div>
       <button class="btn primary big" id="btn-open">${icon('folder')}保存先を開く</button>
@@ -910,7 +1023,7 @@ document.querySelectorAll('#theme-seg button').forEach(b => b.onclick = () => se
 
 /* ---------- remembered conversion settings ---------- */
 function savePrefs() {
-  try { localStorage.setItem('mcconv.prefs', JSON.stringify({ workers: S.workers, comp: S.comp, mem: S.mem, allChunks: S.allChunks, dims: [...S.dims], javaVer: S.javaVer })); } catch (e) {}
+  try { localStorage.setItem('mcconv.prefs', JSON.stringify({ workers: S.workers, comp: S.comp, mem: S.mem, allChunks: S.allChunks, dims: [...S.dims], javaVer: S.javaVer, repl: S.repl })); } catch (e) {}
 }
 function loadPrefs() {
   let p = null;
@@ -921,6 +1034,9 @@ function loadPrefs() {
   if (p.mem >= 0 && (!S.totalMem || p.mem < S.totalMem)) S.mem = p.mem;
   S.allChunks = !!p.allChunks;
   if (typeof p.javaVer === 'string') S.javaVer = p.javaVer;
+  if (p.repl) for (const k of ['bedrock', 'java']) {
+    if (Array.isArray(p.repl[k])) S.repl[k] = p.repl[k].filter(r => r && typeof r.from === 'string' && typeof r.to === 'string').map(r => ({ from: r.from, to: r.to }));
+  }
   if (Array.isArray(p.dims) && p.dims.length) S.dims = new Set(p.dims.filter(d => DIMS.some(x => x[0] === d)));
 }
 function memOptions() {

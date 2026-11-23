@@ -29,6 +29,7 @@ The original world is never modified. Do not open the world in the game while it
 - The selected world's thumbnail and version are shown in the conversion settings.
 - For Bedrock → Java, the Java version to write is chosen in the conversion settings. Java → Bedrock always writes for the newest Bedrock Edition.
 - Worlds newer than mcconv supports show a warning.
+- "Block replacement" (ブロックの置き換え) converts chosen blocks into other blocks (see below).
 - "Advanced settings" (詳細設定) lets you limit the CPU threads and memory used (useful if you want to keep using your PC during a conversion).
 - The game version to write can be chosen in the settings (gear icon).
 
@@ -52,6 +53,20 @@ For newer Java versions, mcconv writes the newest save format it knows (26.2), a
 When converting Bedrock → Java, older versions such as 1.21.1 can be chosen under "Java version to write" in the conversion settings, or with `-java-version 1.21.1` on the command line.
 Blocks, items and biomes that version does not have are replaced with similar ones (for example pale oak → dark oak, pale garden → dark forest), and the replaced blocks are listed after the conversion. Entities that version does not have are not converted.
 Sign text, item names, equipment, boats, furnaces, level.dat and the folder layout are written in that version's format too.
+
+### Block replacement
+
+In the conversion settings, open "Block replacement" (ブロックの置き換え), press "Add row" (行を追加), and enter a source block ID on the left and the replacement block ID on the right.
+Example for Java → Bedrock: `barrier` → `invisible_bedrock`.
+
+- The left ID is from the source edition, the right ID from the target edition. Suggestions appear as you type, and `minecraft:` can be left out.
+- For Java → Bedrock, a Java ID on the right is converted to the matching Bedrock block.
+- Properties such as facing, half or waterlogged are kept when the replacement block has them; otherwise it gets its default state.
+- The contents of replaced blocks (chest items, sign text, ...) are dropped.
+- Unknown IDs are shown in red and must be fixed before converting. The number of replaced blocks is shown after the conversion.
+- Only blocks in the world are replaced, not items in inventories.
+
+On the command line, use `-replace barrier=invisible_bedrock,chest=barrel`.
 
 ## What is converted
 
@@ -86,6 +101,7 @@ The edition of the input is detected automatically and it is converted to the ot
 | `-all-chunks` | Also convert chunks that are not fully generated |
 | `-v` | Show the time taken by each step |
 | `-java-version 1.21.1` | Java version to write (1.21.1 or later; default: `versions.json`, else the tables' version) |
+| `-replace from=to,from=to` | Replace blocks (e.g. `barrier=invisible_bedrock`; source edition ID = target edition ID) |
 | `-data DIR` | Folder for settings and updated data (default: `mcconv-data` next to the exe) |
 
 ### Settings files (mcconv-data folder)
@@ -197,6 +213,7 @@ The built-in mapping tables (`internal/translate/data/tables.json.gz`) are made 
 |---|---|---|
 | Java ⇔ Bedrock block, item and biome mappings | [GeyserMC/mappings](https://github.com/GeyserMC/mappings) | MIT |
 | Bedrock biome IDs, banner patterns, entity IDs | [pmmp/BedrockData](https://github.com/pmmp/BedrockData) | CC0 |
+| List of every Bedrock block and its states | [GeyserMC/Geyser](https://github.com/GeyserMC/Geyser) | MIT |
 | Upgrade rules for old Bedrock block states | [BedrockBlockUpgradeSchema](https://github.com/opencollab-incubator/BedrockBlockUpgradeSchema) | CC0 |
 | Java block state list | Minecraft's data generator | — |
 | Blocks, items, biomes and entities of older Java versions (1.21.1 to 26.1) | [PrismarineJS/minecraft-data](https://github.com/PrismarineJS/minecraft-data) | MIT |

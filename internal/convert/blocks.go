@@ -30,8 +30,11 @@ type blockConverter struct {
 	perPos sync.Map
 	probes sync.Map
 
-	// override maps source block ids to destination ids (overrides.json).
+	// override maps source block ids to the blocks replacing them
+	// (overrides.json and Options.Replace).
 	override map[string]string
+	// replaced counts the replaced blocks (source id -> *atomic.Int64).
+	replaced sync.Map
 	// unknown counts source blocks missing from the tables
 	// (name -> *atomic.Int64, number of chunk palettes containing it).
 	unknown sync.Map
@@ -74,6 +77,8 @@ type cacheEntry struct {
 	// blocks whose block entity holds what Java keeps in the block state).
 	tpl  *translate.BlockEntity
 	rule rule // non-nil: the result depends on the position
+	// replaced is the source id of a user replaced block ("" if not).
+	replaced string
 }
 
 var airBlock = translate.NewBlock("minecraft:air", nil)
@@ -109,8 +114,8 @@ func (bc *blockConverter) lookup(b *translate.Block) *cacheEntry {
 
 func (bc *blockConverter) translate(b *translate.Block) *cacheEntry {
 	t := bc.t
-	if target, ok := bc.override[b.Name()]; ok {
-		return &cacheEntry{out: bc.overrideBlock(b, target)}
+	if src, target, ok := bc.replaceTarget(b); ok {
+		return &cacheEntry{out: bc.replaceBlock(b, target), replaced: src}
 	}
 	if bc.toBedrock {
 		out, ok := t.JavaToBedrock(b)
@@ -144,23 +149,6 @@ func (bc *blockConverter) translate(b *translate.Block) *cacheEntry {
 // silentAir lists Bedrock blocks that are not blocks in Java Edition and are
 // handled elsewhere (item frames become entities).
 var silentAir = map[string]bool{"minecraft:frame": true, "minecraft:glow_frame": true}
-
-func (bc *blockConverter) overrideBlock(b *translate.Block, target string) *translate.Block {
-	t := bc.t
-	if bc.toBedrock {
-		if j, ok := t.JavaDefault(target); ok { // a Java id: use its Bedrock form
-			out, _ := t.JavaToBedrock(j)
-			return out
-		}
-		out := translate.NewBlock(target, nil)
-		out.Version = t.BedrockBlockVersion
-		return bc.intern(out)
-	}
-	if j, ok := t.JavaDefault(target); ok {
-		return j
-	}
-	return bc.intern(translate.NewBlock(target, nil))
-}
 
 func (bc *blockConverter) countUnknown(name string) {
 	c, _ := bc.unknown.LoadOrStore(name, new(atomic.Int64))
@@ -210,16 +198,22 @@ func (bc *blockConverter) convertChunk(in *world.Chunk, dstBounds world.Bounds, 
 	np := len(in.Palette)
 	out.Palette = make([]*translate.Block, np, np+4)
 	const (
-		flagRule = 1
-		flagTpl  = 2
+		flagRule     = 1
+		flagTpl      = 2
+		flagReplaced = 4 // counted; its block entity is dropped
+		flagWork     = flagRule | flagTpl
 	)
 	flags := make([]uint8, np)
 	entries := make([]*cacheEntry, np)
-	special := false
+	special, anyReplaced := false, false
 	for i, b := range in.Palette {
 		e := bc.lookup(b)
 		entries[i] = e
 		out.Palette[i] = e.out
+		if e.replaced != "" {
+			flags[i] |= flagReplaced
+			anyReplaced = true
+		}
 		if e.rule != nil {
 			flags[i] |= flagRule
 			special = true
@@ -263,6 +257,10 @@ func (bc *blockConverter) convertChunk(in *world.Chunk, dstBounds world.Bounds, 
 		return ch.Palette[pi]
 	}
 
+	var replacedN []int64 // per palette index
+	if anyReplaced {
+		replacedN = make([]int64, np)
+	}
 	for si := 0; si < dstBounds.Height(); si++ {
 		sy := dstBounds.MinSection + si
 		srcSi := sy - in.Bounds.MinSection
@@ -270,13 +268,22 @@ func (bc *blockConverter) convertChunk(in *world.Chunk, dstBounds world.Bounds, 
 			continue
 		}
 		sec := in.Sections[srcSi]
+		if anyReplaced {
+			if sec == nil {
+				replacedN[0] += 4096
+			} else {
+				for _, v := range sec.Blocks {
+					replacedN[v]++
+				}
+			}
+		}
 		if sec == nil {
 			continue // all palette index 0 (air)
 		}
 		need := false
 		if special {
 			for _, v := range sec.Blocks {
-				if flags[v] != 0 {
+				if flags[v]&flagWork != 0 {
 					need = true
 					break
 				}
@@ -289,7 +296,7 @@ func (bc *blockConverter) convertChunk(in *world.Chunk, dstBounds world.Bounds, 
 		os := cache.Get()
 		os.Blocks = sec.Blocks
 		for p, v := range sec.Blocks {
-			f := flags[v]
+			f := flags[v] & flagWork
 			if f == 0 {
 				continue
 			}
@@ -306,6 +313,11 @@ func (bc *blockConverter) convertChunk(in *world.Chunk, dstBounds world.Bounds, 
 		}
 		out.Sections[si] = os
 	}
+	for i, n := range replacedN {
+		if n > 0 && flags[i]&flagReplaced != 0 {
+			bc.countReplaced(entries[i].replaced, n)
+		}
+	}
 
 	// block entities
 	for pos, be := range in.BlockEntities {
@@ -316,6 +328,11 @@ func (bc *blockConverter) convertChunk(in *world.Chunk, dstBounds world.Bounds, 
 		}
 		if inBlock == nil {
 			continue
+		}
+		if anyReplaced {
+			if pi := in.PaletteIndex(int(pos.X&15), int(pos.Y), int(pos.Z&15)); pi >= 0 && pi < np && flags[pi]&flagReplaced != 0 {
+				continue // the block was replaced: its data does not fit the new block
+			}
 		}
 		if obe := bc.be.convert(inBlock, outBlock, be, pos); obe != nil {
 			if tpl, ok := out.BlockEntities[pos]; ok {
@@ -460,6 +477,11 @@ func sameProbes(a, b []probe) bool {
 // layers).
 func (bc *blockConverter) convertName(name string) string {
 	if bc.toBedrock {
+		if j, ok := bc.t.JavaDefault(withNS(name)); ok {
+			if _, _, ok := bc.replaceTarget(j); ok {
+				return bc.lookup(j).out.Name()
+			}
+		}
 		if j, ok := bc.t.JavaDefault(withNS(name)); ok {
 			if out, ok := bc.t.JavaToBedrock(j); ok {
 				return out.Name()

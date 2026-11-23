@@ -50,7 +50,9 @@ type TableFile struct {
 	// BedrockEntities lists the Bedrock entity identifiers.
 	BedrockEntities []string          `json:"bedrock_entities"`
 	UpgradeSchemas  []json.RawMessage `json:"upgrade_schemas"`
-	Sources         []string          `json:"sources"`
+	// BedrockBlocks lists every Bedrock block and its states (optional).
+	BedrockBlocks []BedrockBlockDef `json:"bedrock_blocks,omitempty"`
+	Sources       []string          `json:"sources"`
 }
 
 // JavaBlockDef is a Java block: its properties (in the game's order) and
@@ -107,6 +109,8 @@ type Tables struct {
 	entities    map[string]bool
 
 	up *upgrader
+
+	bedrockBlocks map[string]*bedrockDef // every Bedrock block (if the tables list them)
 }
 
 type javaBlock struct {
@@ -158,8 +162,19 @@ func Load() (*Tables, error) {
 	return t, nil
 }
 
-// Parse decodes a gzip compressed table file.
+// Parse decodes a gzip compressed table file. Tables without the Bedrock
+// block list (written by an older mcconv) get the built-in one.
 func Parse(src []byte) (*Tables, error) {
+	t, err := parse(src)
+	if err == nil && len(t.bedrockBlocks) == 0 {
+		if bt, err := parse(builtinTables); err == nil {
+			t.bedrockBlocks = bt.bedrockBlocks
+		}
+	}
+	return t, err
+}
+
+func parse(src []byte) (*Tables, error) {
 	zr, err := gzip.NewReader(bytes.NewReader(src))
 	if err != nil {
 		return nil, err
@@ -291,6 +306,9 @@ func Parse(src []byte) (*Tables, error) {
 		return nil, err
 	}
 	t.up = up
+	if err := t.loadBedrockBlocks(tf.BedrockBlocks); err != nil {
+		return nil, err
+	}
 	return t, nil
 }
 

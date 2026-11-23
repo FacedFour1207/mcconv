@@ -247,13 +247,6 @@ func (t *Tables) fuzzyBedrock(key, name string, props map[string]any) (int32, bo
 	return best, best >= 0
 }
 
-// HasBedrockBlock reports whether some Java block converts to the Bedrock
-// block id.
-func (t *Tables) HasBedrockBlock(name string) bool {
-	_, ok := t.byBedrock[name]
-	return ok
-}
-
 func stateKey(name string, props map[string]any) string {
 	return (&Block{Namespace: "", BaseName: name, Props: props}).Key()[1:] // drop the empty namespace's ':'
 }

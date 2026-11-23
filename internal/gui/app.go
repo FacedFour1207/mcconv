@@ -153,16 +153,17 @@ func (a *App) Destinations(target string) []Destination { return destinations(ta
 
 // StartRequest is a conversion started from the page.
 type StartRequest struct {
-	Source      string   `json:"source"`
-	Target      string   `json:"target"` // "java" | "bedrock"
-	Name        string   `json:"name"`
-	DestRoot    string   `json:"destRoot"`
-	Dims        []string `json:"dims"`
-	Workers     int      `json:"workers"`
-	Compression int      `json:"compression"`
-	AllChunks   bool     `json:"allChunks"`
-	MemoryMB    int      `json:"memoryMB"`    // 0 = no limit
-	JavaVersion string   `json:"javaVersion"` // Java release to write (Bedrock -> Java)
+	Source      string       `json:"source"`
+	Target      string       `json:"target"` // "java" | "bedrock"
+	Name        string       `json:"name"`
+	DestRoot    string       `json:"destRoot"`
+	Dims        []string     `json:"dims"`
+	Workers     int          `json:"workers"`
+	Compression int          `json:"compression"`
+	AllChunks   bool         `json:"allChunks"`
+	MemoryMB    int          `json:"memoryMB"`    // 0 = no limit
+	JavaVersion string       `json:"javaVersion"` // Java release to write (Bedrock -> Java)
+	Replace     []ReplaceRow `json:"replace"`     // block replacements
 }
 
 // Start begins a conversion and returns the output folder. Progress arrives
@@ -206,6 +207,13 @@ func (a *App) Start(r StartRequest) (string, error) {
 	}
 	if r.Target == "java" && r.JavaVersion != "" {
 		args = append(args, "-java-version", r.JavaVersion)
+	}
+	repl, err := a.replaceArg(r.Target, r.Replace)
+	if err != nil {
+		return "", err
+	}
+	if repl != "" {
+		args = append(args, "-replace", repl)
 	}
 	args = append(args, r.Source, out)
 	return out, a.run(&job{out: out}, args, false)

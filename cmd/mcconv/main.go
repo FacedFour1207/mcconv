@@ -51,6 +51,7 @@ func main() {
 		jsonOut    = flag.Bool("progress-json", false, "report progress as JSON lines on stdout (used by the GUI)")
 		memMB      = flag.Int("mem", 0, "memory limit in MB (0 = none; lower uses less RAM but converts slower)")
 		javaVer    = flag.String("java-version", "", "Java version to write, 1.21.1 or newer (default: versions.json, else the tables' version)")
+		replace    = flag.String("replace", "", "replace blocks: from=to,from=to (source edition id = target edition id, e.g. barrier=invisible_bedrock)")
 	)
 	flag.Usage = func() {
 		fmt.Fprintf(os.Stderr, "usage: mcconv [options] <input world> <output world>\n")
@@ -135,6 +136,9 @@ func main() {
 		CompressionLevel:  *level,
 		IncludeUnfinished: *unfinished,
 		LevelName:         *name,
+	}
+	if opts.Replace, err = convert.ParseReplace(*replace); err != nil {
+		fatal(err)
 	}
 	for _, d := range strings.Split(*dims, ",") {
 		switch strings.TrimSpace(strings.ToLower(d)) {
@@ -261,5 +265,5 @@ func runJSON(in, out, from string, opts convert.Options) {
 		os.Exit(1)
 	}
 	emit(map[string]any{"t": "done", "chunks": st.Chunks, "skipped": st.Skipped, "failed": st.Failed,
-		"blockEntities": st.BlockEntities, "entities": st.Entities, "ms": st.Duration.Milliseconds()})
+		"blockEntities": st.BlockEntities, "entities": st.Entities, "ms": st.Duration.Milliseconds(), "replaced": st.Replaced})
 }

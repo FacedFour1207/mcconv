@@ -44,6 +44,9 @@ type Options struct {
 	Cancel <-chan struct{}
 	// LevelName, if set, renames the output world.
 	LevelName string
+	// Replace maps source block ids to the target edition blocks that
+	// replace them (see ParseReplace); it adds to overrides.json.
+	Replace map[string]string
 }
 
 // ErrCanceled is returned when Options.Cancel was closed.
@@ -67,6 +70,7 @@ type Stats struct {
 	Entities      int64
 	PerPosBlocks  int64
 	TranslateErrs int64
+	Replaced      map[string]int64 // replaced blocks by source id
 	Duration      time.Duration
 }
 
@@ -112,6 +116,9 @@ func JavaToBedrock(srcDir, dstDir string, opts Options) (*Stats, error) {
 	if err != nil {
 		return nil, err
 	}
+	if err := CheckReplace(data, true, opts.Replace); err != nil {
+		return nil, err
+	}
 	src, err := java.Open(srcDir)
 	if err != nil {
 		return nil, fmt.Errorf("open java world: %w", err)
@@ -139,7 +146,7 @@ func JavaToBedrock(srcDir, dstDir string, opts Options) (*Stats, error) {
 	if err != nil {
 		return nil, err
 	}
-	bc := newBlockConverter(data, true, blockOverrides(opts.Config, true), opts.Logf)
+	bc := newBlockConverter(data, true, replacements(data, opts, true), opts.Logf)
 	items := &itemConverter{t: data, toBedrock: true}
 	bc.be = &beConverter{t: data, items: items, toBedrock: true}
 	jc := &java.Codec{Complete: data.CompleteJavaBlock}
@@ -293,6 +300,7 @@ func JavaToBedrock(srcDir, dstDir string, opts Options) (*Stats, error) {
 	}
 	copyIcon(filepath.Join(srcDir, "icon.png"), filepath.Join(dstDir, "world_icon.jpeg"))
 	reportUnknown(opts, bc)
+	reportReplacements(opts, bc, st)
 	bc.dumpPerPos(opts.Logf)
 	st.PerPosBlocks = bc.perPosCount.Load()
 	st.TranslateErrs = bc.errorCount.Load()
@@ -426,6 +434,9 @@ func BedrockToJava(srcDir, dstDir string, opts Options) (*Stats, error) {
 	if err != nil {
 		return nil, err
 	}
+	if err := CheckReplace(data, false, opts.Replace); err != nil {
+		return nil, err
+	}
 	if v := bedrock.LastOpenedWith(srcDir); len(v) >= 3 && newerBedrock(v, data.BedrockVersion) {
 		warnNewer(opts, fmt.Sprintf("Bedrock %d.%d.%d", v[0], v[1], v[2]))
 	}
@@ -461,7 +472,7 @@ func BedrockToJava(srcDir, dstDir string, opts Options) (*Stats, error) {
 	if err != nil {
 		return nil, err
 	}
-	bc := newBlockConverter(data, false, blockOverrides(opts.Config, false), opts.Logf)
+	bc := newBlockConverter(data, false, replacements(data, opts, false), opts.Logf)
 	items := &itemConverter{t: data, toBedrock: false, jf: jf}
 	bc.be = &beConverter{t: data, items: items, toBedrock: false, jf: jf}
 	bcodec := &bedrock.Codec{Biomes: data}
@@ -614,6 +625,7 @@ func BedrockToJava(srcDir, dstDir string, opts Options) (*Stats, error) {
 	}
 	copyIcon(filepath.Join(srcDir, "world_icon.jpeg"), filepath.Join(dstDir, "icon.png"))
 	reportUnknown(opts, bc)
+	reportReplacements(opts, bc, st)
 	reportReplaced(opts, target)
 	bc.dumpPerPos(opts.Logf)
 	st.PerPosBlocks = bc.perPosCount.Load()
