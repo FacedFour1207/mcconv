@@ -186,4 +186,84 @@ func TestReplaceToJava(t *testing.T) {
 	}
 }
 
+func TestParseReplaceCustom(t *testing.T) {
+	m, err := ParseReplace(`oak_sapling = Addon:Custom_Block[ stage = 1 , open=true, label="a b" ], stone=addon:plain, addon:old=dirt`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := map[string]string{
+		"minecraft:oak_sapling": `addon:custom_block[stage=1,open=true,label="a b"]`,
+		"minecraft:stone":       "addon:plain",
+		"addon:old":             "minecraft:dirt",
+	}
+	for k, v := range want {
+		if m[k] != v {
+			t.Errorf("%s: got %q, want %q", k, m[k], v)
+		}
+	}
+	for _, bad := range []string{
+		"stone=dirt[snowy=true]", // states only for add-on / mod blocks
+		"addon:a[x=1]=stone",     // not on the source block
+		"stone=addon:a[x]",       // no value
+		"stone=addon:a[x=1,x=2]", // twice
+		"stone=addon:a[x=1",      // not closed
+		`stone=addon:a[x=a"b]`,   // stray quote
+	} {
+		if _, err := ParseReplace(bad); err == nil {
+			t.Errorf("%q: no error", bad)
+		}
+	}
+}
+
+func TestReplaceCustom(t *testing.T) {
+	data, err := translate.Load()
+	if err != nil {
+		t.Fatal(err)
+	}
+	// unknown add-on / mod ids are accepted on both sides
+	for _, tb := range []bool{true, false} {
+		if err := CheckReplace(data, tb, map[string]string{"minecraft:stone": "addon:custom_block", "addon:other": "minecraft:dirt"}); err != nil {
+			t.Errorf("toBedrock=%v: %v", tb, err)
+		}
+		if err := CheckReplace(data, tb, map[string]string{"minecraft:stone": "minecraft:no_such_block"}); err == nil {
+			t.Errorf("toBedrock=%v: unknown vanilla id accepted", tb)
+		}
+	}
+
+	// to Bedrock: typed states, the current block state version
+	bc := newBlockConverter(data, true, map[string]string{
+		"minecraft:oak_sapling": `addon:custom_block[stage=1,open=true,label="2"]`,
+		"minecraft:stone":       "addon:plain",
+		"addon:old":             "minecraft:dirt",
+	}, nil)
+	e := bc.lookup(translate.NewBlock("minecraft:oak_sapling", map[string]any{"stage": "0"}))
+	p := e.out.Props
+	if e.out.Name() != "addon:custom_block" || p["stage"] != int32(1) || p["open"] != int8(1) || p["label"] != "2" || e.out.Version != data.BedrockBlockVersion {
+		t.Fatalf("sapling: got %s %#v v%d", e.out.Name(), p, e.out.Version)
+	}
+	if e = bc.lookup(translate.NewBlock("minecraft:stone", nil)); e.out.Key() != "addon:plain" || e.replaced == "" {
+		t.Fatalf("stone: got %s", e.out.Key())
+	}
+	if e = bc.lookup(translate.NewBlock("addon:old", map[string]any{"x": "1"})); e.out.Name() != "minecraft:dirt" {
+		t.Fatalf("mod block: got %s", e.out.Key())
+	}
+
+	// to Java: string states; older target releases keep mod blocks
+	bc = newBlockConverter(data, false, map[string]string{"minecraft:stone": "addon:custom_block[stage=1,open=true]", "addon:old": "minecraft:oak_planks"}, nil)
+	e = bc.lookup(translate.NewBlock("minecraft:stone", nil))
+	if e.out.Name() != "addon:custom_block" || e.out.Props["stage"] != "1" || e.out.Props["open"] != "true" {
+		t.Fatalf("java: got %s %#v", e.out.Name(), e.out.Props)
+	}
+	if e2 := bc.lookup(translate.NewBlock("addon:old", nil)); e2.out.Name() != "minecraft:oak_planks" {
+		t.Fatalf("add-on block: got %s", e2.out.Key())
+	}
+	jt, err := data.JavaTarget(translate.MinJavaDataVersion)
+	if err != nil || jt == nil {
+		t.Fatalf("java target: %v", err)
+	}
+	if got := jt.Block(e.out); got != e.out {
+		t.Fatalf("older Java target changed the mod block to %s", got.Key())
+	}
+}
+
 func testConfig() *config.Config { return &config.Config{Versions: config.DefaultVersions()} }

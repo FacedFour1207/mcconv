@@ -33,6 +33,7 @@
   --accent-soft: rgba(16, 185, 129, .12);
   --danger: #e11d48;
   --danger-soft: rgba(225, 29, 72, .1);
+  --warn: #b45309;
   --java: #e76f2c;
   --java-soft: rgba(231, 111, 44, .13);
   --bedrock: #3b82f6;
@@ -60,6 +61,7 @@
   --accent-soft: rgba(16, 185, 129, .16);
   --danger: #fb7185;
   --danger-soft: rgba(251, 113, 133, .12);
+  --warn: #fbbf24;
   --java-soft: rgba(231, 111, 44, .18);
   --bedrock-soft: rgba(59, 130, 246, .2);
   --shadow: 0 1px 2px rgba(0, 0, 0, .3), 0 10px 30px -12px rgba(0, 0, 0, .6);
@@ -263,6 +265,9 @@ details.adv summary .count[hidden] { display: none; }
 .repl-row.bad .input { border-color: var(--danger); }
 .repl-err { grid-column: 1 / -1; font-size: 12px; color: var(--danger); line-height: 1.45; }
 .repl-err:empty { display: none; }
+.repl-warn { grid-column: 1 / -1; font-size: 12px; color: var(--warn); line-height: 1.45; }
+.repl-warn:empty { display: none; }
+.hint code { font-family: ui-monospace, Consolas, monospace; font-size: .95em; padding: 0 3px; border-radius: 4px; background: var(--surface-hover); }
 .repl-names { grid-column: 1 / -1; font-size: 11.5px; color: var(--text-3); margin-top: -2px; }
 .repl-names:empty { display: none; }
 .bpick {
@@ -548,7 +553,7 @@ const S = {
   page: 'pick',  // pick (1: choose a world) | setup (2: settings, progress, result)
   job: null, loaded: false, javaVer: '', force: false,
   repl: { bedrock: [], java: [] }, // block replacement rows by target edition
-  replErr: { bedrock: [], java: [] }, replOpen: false, blockIDs: null,
+  replErr: { bedrock: [], java: [] }, replWarn: { bedrock: [], java: [] }, replOpen: false, blockIDs: null,
 };
 
 function toast(msg, err) {
@@ -808,7 +813,10 @@ function renderSide() {
 function replTarget() { return S.sel && S.sel.edition === 'java' ? 'bedrock' : 'java'; }
 function replRows() { return S.repl[replTarget()]; }
 function replErrs() { return S.replErr[replTarget()]; }
+function replWarns() { return S.replWarn[replTarget()]; }
 const shortID = s => s.trim().toLowerCase().replace(/^minecraft:/, '');
+// an id outside "minecraft:" (an add-on or mod block)
+const isCustomID = s => { const m = /^\s*([^:[\s]+)\s*:/.exec(s); return !!m && m[1].toLowerCase() !== 'minecraft'; };
 function startBlocked() {
   return (tooNew(S.sel) && S.sel.edition === 'java' && !S.force) || replErrs().some(Boolean);
 }
@@ -819,14 +827,15 @@ function replHTML() {
   return `<details class="adv" id="repl" ${S.replOpen || rows.length ? 'open' : ''}>
     <summary>${icon('cube')}ブロックの置き換え<span class="count" id="repl-count" ${n ? '' : 'hidden'}>${n}</span>${icon('chev', 'chev')}</summary>
     <div class="inner">
-      <div class="hint">左に ${ED[src]} のブロック、右に ${ED[dst]} のブロックを選ぶと、そのブロックを置き換えて変換します。入力欄を押すと一覧が出ます (ID か日本語名で絞り込めます)。向きなどの設定は、置き換え先にも同じものがあれば引き継ぎます。置き換えたブロックの中身 (チェストのアイテムなど) は消えます。</div>
+      <div class="hint">左に ${ED[src]} のブロック、右に ${ED[dst]} のブロックを選ぶと、そのブロックを置き換えて変換します。入力欄を押すと一覧が出ます (ID か日本語名で絞り込めます)。向きなどの設定は、置き換え先にも同じものがあれば引き継ぎます。置き換えたブロックの中身 (チェストのアイテムなど) は消えます。<br>一覧にないアドオンや MOD のブロックも、<code>addon:custom_block</code> のように ID を入力すれば使えます。状態は <code>addon:custom_block[stage=1]</code> のように書けます (書かなくてもかまいません)。</div>
       <div class="repl-rows">${rows.map((r, i) => `<div class="repl-row ${replErrs()[i] ? 'bad' : ''}" data-i="${i}">
         <input class="input" data-ed="${src}" data-k="from" value="${esc(r.from)}" aria-label="${i + 1} 行目の元のブロック (${ED[src]})" placeholder="元のブロック" spellcheck="false" autocomplete="off">
         <span class="to" aria-hidden="true">→</span>
         <input class="input" data-ed="${dst}" data-k="to" value="${esc(r.to)}" aria-label="${i + 1} 行目の置き換え先 (${ED[dst]})" placeholder="置き換え先" spellcheck="false" autocomplete="off">
         <button class="icon-btn" data-del="${i}" title="この行を消す" aria-label="${i + 1} 行目を消す">${icon('x')}</button>
         <div class="repl-names">${esc(namesLine(r, src, dst))}</div>
-        <div class="repl-err" role="alert">${esc(replErrs()[i] || '')}</div></div>`).join('')}</div>
+        <div class="repl-err" role="alert">${esc(replErrs()[i] || '')}</div>
+        <div class="repl-warn">${esc(replErrs()[i] ? '' : replWarns()[i] || '')}</div></div>`).join('')}</div>
       <button class="btn" id="btn-repl-add">${icon('plus')}行を追加</button>
     </div></details>`;
 }
@@ -852,6 +861,7 @@ function bindRepl() {
   box.querySelectorAll('[data-del]').forEach(b => b.onclick = () => {
     replRows().splice(+b.dataset.del, 1);
     replErrs().splice(+b.dataset.del, 1);
+    replWarns().splice(+b.dataset.del, 1);
     savePrefs(); renderSide(); checkRepl();
   });
   $('#btn-repl-add').onclick = () => {
@@ -869,15 +879,16 @@ function checkReplSoon() { clearTimeout(replTimer); replTimer = setTimeout(check
 async function checkRepl() {
   if (!S.sel || !window.mcCheckReplace) return;
   const seq = ++replSeq, target = replTarget(), rows = replRows();
-  let errs = [];
-  try { errs = await mcCheckReplace(target, rows) || []; } catch (e) { errs = rows.map(() => ''); }
+  let errs = [], warns = [];
+  try { const c = await mcCheckReplace(target, rows) || {}; errs = c.errors || []; warns = c.warnings || []; } catch (e) { errs = rows.map(() => ''); }
   if (seq !== replSeq) return;
-  S.replErr[target] = errs;
+  S.replErr[target] = errs; S.replWarn[target] = warns;
   if (S.view !== 'setup' || replTarget() !== target) return;
   document.querySelectorAll('#repl .repl-row').forEach(r => {
-    const m = errs[+r.dataset.i] || '';
+    const i = +r.dataset.i, m = errs[i] || '';
     r.classList.toggle('bad', !!m);
     r.querySelector('.repl-err').textContent = m;
+    r.querySelector('.repl-warn').textContent = m ? '' : warns[i] || '';
   });
   updateStartBtn();
 }
@@ -901,6 +912,7 @@ async function loadBlockIDs() {
   } catch (e) { S.blockIDs = null; }
 }
 function blockInfo(ed, id) {
+  if (isCustomID(id)) return { id: id.trim() };
   return S.blockMap && S.blockMap[ed] ? S.blockMap[ed].get(shortID(id)) : null;
 }
 // "バリアブロック → 透明な岩盤" under a row (names known for both sides only)
@@ -966,6 +978,13 @@ function renderPicker() {
   BP.items = shown.slice(0, MAX);
   if (BP.active >= BP.items.length) BP.active = BP.items.length - 1;
   const mk = t => q ? esc(t).replace(new RegExp(q.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'g'), m => `<mark>${m}</mark>`) : esc(t);
+  if (isCustomID(raw)) {
+    BP.items = []; BP.active = -1;
+    list.innerHTML = `<div class="bp-empty">「${esc(raw)}」は標準のブロックではありません。${ed === 'bedrock' ? 'アドオン' : 'MOD'} のブロックとして、このまま使えます (Enter で決定)。</div>`;
+    foot.textContent = '';
+    placePicker();
+    return;
+  }
   list.innerHTML = BP.items.length ? BP.items.map((b, i) => `<div class="bp-item ${i === BP.active ? 'active' : ''}" role="option" data-id="${esc(b.id)}">
       <span class="bp-name">${b.name ? esc(b.name) : mk(b.id)}</span>${b.name ? `<span class="bp-id">${mk(b.id)}</span>` : ''}</div>`).join('')
     : `<div class="bp-empty">${q ? `「${esc(raw)}」に合う ${ED[ed]} のブロックはありません` : 'ブロックがありません'}</div>`;
@@ -997,6 +1016,7 @@ function pickerKey(e) {
     if (a) a.scrollIntoView({ block: 'nearest' });
     e.preventDefault();
   } else if (e.key === 'Enter') {
+    if (isCustomID(BP.input.value)) { closePicker(); e.preventDefault(); return; }
     const it = BP.items[BP.active >= 0 ? BP.active : 0];
     if (it && (BP.active >= 0 || BP.input.value.trim())) { choose(it.id); e.preventDefault(); }
   } else if (e.key === 'Escape') {

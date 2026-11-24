@@ -172,7 +172,7 @@ func (jt *JavaTarget) HasBlock(name string) bool { return jt == nil || jt.blocks
 // Block converts a Java block state of the tables' version to the target
 // release (shared result instances).
 func (jt *JavaTarget) Block(b *Block) *Block {
-	if jt == nil {
+	if jt == nil || b.Namespace != "minecraft" { // mod blocks are kept
 		return b
 	}
 	if v, ok := jt.cache.Load(b); ok {

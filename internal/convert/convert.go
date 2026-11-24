@@ -119,6 +119,7 @@ func JavaToBedrock(srcDir, dstDir string, opts Options) (*Stats, error) {
 	if err := CheckReplace(data, true, opts.Replace); err != nil {
 		return nil, err
 	}
+	noteCustom(opts, true)
 	src, err := java.Open(srcDir)
 	if err != nil {
 		return nil, fmt.Errorf("open java world: %w", err)
@@ -437,6 +438,7 @@ func BedrockToJava(srcDir, dstDir string, opts Options) (*Stats, error) {
 	if err := CheckReplace(data, false, opts.Replace); err != nil {
 		return nil, err
 	}
+	noteCustom(opts, false)
 	if v := bedrock.LastOpenedWith(srcDir); len(v) >= 3 && newerBedrock(v, data.BedrockVersion) {
 		warnNewer(opts, fmt.Sprintf("Bedrock %d.%d.%d", v[0], v[1], v[2]))
 	}

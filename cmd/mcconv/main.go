@@ -51,7 +51,7 @@ func main() {
 		jsonOut    = flag.Bool("progress-json", false, "report progress as JSON lines on stdout (used by the GUI)")
 		memMB      = flag.Int("mem", 0, "memory limit in MB (0 = none; lower uses less RAM but converts slower)")
 		javaVer    = flag.String("java-version", "", "Java version to write, 1.21.1 or newer (default: versions.json, else the tables' version)")
-		replace    = flag.String("replace", "", "replace blocks: from=to,from=to (source edition id = target edition id, e.g. barrier=invisible_bedrock)")
+		replace    = flag.String("replace", "", "replace blocks: from=to,from=to (source edition id = target edition id, e.g. barrier=invisible_bedrock; add-on / mod ids may have states: stone=addon:custom_block[stage=1])")
 	)
 	flag.Usage = func() {
 		fmt.Fprintf(os.Stderr, "usage: mcconv [options] <input world> <output world>\n")

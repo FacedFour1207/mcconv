@@ -66,7 +66,18 @@ Java版 の新しいバージョン向けには、mcconv が書き方を知っ�
 - 存在しないIDは赤字で表示され、直すまで変換を始められません。変換後に、置き換えたブロックの数を表示します。
 - 置き換えるのは地形のブロックだけです。インベントリ内のアイテムは変わりません。
 
-コマンドラインでは `-replace barrier=invisible_bedrock,chest=barrel` のように指定します。
+#### アドオン・MOD のブロック
+
+一覧にないブロックも、`minecraft:` 以外のIDを入力すれば使えます (例: `addon:custom_block`)。黄色い注意が出ますが、そのまま変換できます。
+
+- 右 (置き換え先) に書くと、そのIDのまま書き込みます。統合版ではアドオン (ビヘイビアパック) のブロック、Java版では MOD (Fabric・NeoForge など) のブロックになります。そのアドオンや MOD が入っていないと、統合版では不明なブロック、Java版では空気になります。
+- 左 (元のブロック) に書くと、元のワールドにあるアドオンや MOD のブロックを置き換えられます。
+- 置き換え先には状態を書けます: `addon:custom_block[stage=1,open=true]`。書かなければ、ゲームが初期の状態にします。一部だけ書いた場合も、残りは初期の状態になります。
+  - 統合版では、`true` / `false` は真偽値、整数は数値、それ以外は文字列として書き込みます。数字を文字列として書きたいときは `label="1"` のように `"` で囲みます。
+  - Java版では、すべて文字列として書き込みます。
+- 状態を書けるのはアドオン・MOD のブロックだけです。標準のブロックの状態は、元のブロックから引き継ぎます。
+
+コマンドラインでは `-replace barrier=invisible_bedrock,chest=barrel` のように指定します (状態の中の `,` はそのまま書けます: `-replace "stone=addon:custom_block[stage=1,open=true]"`)。
 
 ## 変換されるもの
 
@@ -101,7 +112,7 @@ mcconv update-data          (ゲームのアップデート後に対応表を更
 | `-all-chunks` | 生成途中のチャンクも変換する |
 | `-v` | 各段階の所要時間を表示 |
 | `-java-version 1.21.1` | 書き出す Java版のバージョン (1.21.1 以降。既定: `versions.json` の値、なければ対応表の版) |
-| `-replace 元=先,元=先` | ブロックを置き換える (例: `barrier=invisible_bedrock`。左は変換元、右は変換先のエディションのID) |
+| `-replace 元=先,元=先` | ブロックを置き換える (例: `barrier=invisible_bedrock`。左は変換元、右は変換先のエディションのID。アドオン・MOD のIDと状態も書ける: `stone=addon:custom_block[stage=1]`) |
 | `-data DIR` | 設定・更新データのフォルダ (既定: exe と同じ場所の `mcconv-data`) |
 
 ### 設定ファイル (mcconv-data フォルダ)

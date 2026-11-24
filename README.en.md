@@ -67,7 +67,18 @@ Example for Java → Bedrock: `barrier` → `invisible_bedrock`.
 - Unknown IDs are shown in red and must be fixed before converting. The number of replaced blocks is shown after the conversion.
 - Only blocks in the world are replaced, not items in inventories.
 
-On the command line, use `-replace barrier=invisible_bedrock,chest=barrel`.
+#### Add-on and mod blocks
+
+Blocks that are not in the list can be used by entering an ID outside `minecraft:` (e.g. `addon:custom_block`). A yellow notice is shown, but the conversion can go ahead.
+
+- On the right (the replacement), the ID is written as given: an add-on (behavior pack) block in Bedrock, or a mod block (Fabric, NeoForge, ...) in Java. Without that add-on or mod the game shows an unknown block (Bedrock) or air (Java).
+- On the left (the source block), it replaces add-on or mod blocks in the source world.
+- The replacement can have states: `addon:custom_block[stage=1,open=true]`. Without them (or for the states left out) the game uses the default state.
+  - In Bedrock, `true` / `false` are written as booleans, whole numbers as numbers and the rest as strings. Quote a value to keep it a string: `label="1"`.
+  - In Java, every value is a string.
+- States can only be given for add-on and mod blocks. Vanilla blocks take their states from the source block.
+
+On the command line, use `-replace barrier=invisible_bedrock,chest=barrel` (commas inside the states are fine: `-replace "stone=addon:custom_block[stage=1,open=true]"`).
 
 ## What is converted
 
@@ -102,7 +113,7 @@ The edition of the input is detected automatically and it is converted to the ot
 | `-all-chunks` | Also convert chunks that are not fully generated |
 | `-v` | Show the time taken by each step |
 | `-java-version 1.21.1` | Java version to write (1.21.1 or later; default: `versions.json`, else the tables' version) |
-| `-replace from=to,from=to` | Replace blocks (e.g. `barrier=invisible_bedrock`; source edition ID = target edition ID) |
+| `-replace from=to,from=to` | Replace blocks (e.g. `barrier=invisible_bedrock`; source edition ID = target edition ID; add-on / mod IDs with states also work: `stone=addon:custom_block[stage=1]`) |
 | `-data DIR` | Folder for settings and updated data (default: `mcconv-data` next to the exe) |
 
 ### Settings files (mcconv-data folder)
