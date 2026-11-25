@@ -267,3 +267,14 @@ func TestReplaceCustom(t *testing.T) {
 }
 
 func testConfig() *config.Config { return &config.Config{Versions: config.DefaultVersions()} }
+
+func TestFinishedStatus(t *testing.T) {
+	for s, want := range map[string]bool{
+		"": true, "minecraft:full": true, "full": true, "minecraft:spawn": true,
+		"minecraft:empty": false, "minecraft:features": false, "minecraft:structure_starts": false,
+	} {
+		if finishedStatus(s) != want {
+			t.Errorf("%q: got %v", s, !want)
+		}
+	}
+}

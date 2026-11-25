@@ -27,10 +27,13 @@ type FastDecoder struct {
 
 // FastResult holds the parts of a chunk outside the block data.
 type FastResult struct {
-	Status        string
-	DataVersion   int
-	BlockEntities *nbt.List
-	Entities      *nbt.List // legacy in-chunk entities
+	Status string
+	// RetrogenStatus is the status of an upgraded pre-1.18 chunk (its
+	// Status is "empty" then); "" otherwise.
+	RetrogenStatus string
+	DataVersion    int
+	BlockEntities  *nbt.List
+	Entities       *nbt.List // legacy in-chunk entities
 }
 
 // NewFastDecoder returns a decoder bound to the codec.
@@ -93,6 +96,13 @@ func (fd *FastDecoder) Decode(data []byte, bounds world.Bounds) (ch *world.Chunk
 			} else {
 				sc.Skip(t)
 			}
+		case "below_zero_retrogen":
+			// chunks of worlds older than 1.18 upgraded by the game: the
+			// Status is "empty" until the game builds the terrain below y 0
+			// when the chunk is loaded; the blocks above it are complete
+			if c, ok := sc.Value(t).(nbt.Compound); ok {
+				res.RetrogenStatus, _ = c.String("target_status")
+			}
 		case "sections", "Sections":
 			if t != nbt.TagList {
 				sc.Skip(t)
@@ -110,7 +120,7 @@ func (fd *FastDecoder) Decode(data []byte, bounds world.Bounds) (ch *world.Chunk
 			if l, ok := sc.Value(t).(*nbt.List); ok {
 				res.BlockEntities = l
 			}
-		case "Entities":
+		case "Entities", "entities": // "entities": legacy chunks upgraded by the game
 			if l, ok := sc.Value(t).(*nbt.List); ok {
 				res.Entities = l
 			}

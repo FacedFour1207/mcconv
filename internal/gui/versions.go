@@ -116,6 +116,8 @@ func (a *App) versionLists() {
 	if t != nil {
 		ev["tablesJava"], ev["tablesBedrock"], ev["tablesJavaDV"] = t.JavaVersion, t.BedrockVersion, t.JavaDataVersion
 		ev["readJavaDV"] = javaworld.ReadFormatDataVersion
+		// older Java worlds are upgraded with this server version first
+		ev["minJavaDV"], ev["upgradeVer"] = translate.MinJavaDataVersion, javaworld.ReadFormatName
 	}
 	a.emit(ev)
 }

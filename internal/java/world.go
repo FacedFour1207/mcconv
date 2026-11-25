@@ -28,6 +28,7 @@ const (
 	WriteFormatDataVersion = 4903 // 26.2
 	WriteFormatName        = "26.2"
 	ReadFormatDataVersion  = 5023 // 26.3: block states as {id, properties} or a name
+	ReadFormatName         = "26.3"
 )
 
 // AnvilVersion is the region format version stored in level.dat.

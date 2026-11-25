@@ -18,6 +18,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"time"
 
 	"mcconv/internal/config"
 	"mcconv/internal/translate"
@@ -164,7 +165,14 @@ type StartRequest struct {
 	MemoryMB    int          `json:"memoryMB"`    // 0 = no limit
 	JavaVersion string       `json:"javaVersion"` // Java release to write (Bedrock -> Java)
 	Replace     []ReplaceRow `json:"replace"`     // block replacements
+	// Java worlds older than 1.21.1: upgrade a copy with the official
+	// server first (the user accepted the Minecraft EULA on the page)
+	UpgradeOld bool `json:"upgradeOld"`
+	AcceptEULA bool `json:"acceptEula"`
 }
+
+// eulaURL is the Minecraft EULA, shown before the official server runs.
+const eulaURL = "https://aka.ms/MinecraftEULA"
 
 // Start begins a conversion and returns the output folder. Progress arrives
 // as events: log, p (progress), done / error, and finally exit.
@@ -214,6 +222,12 @@ func (a *App) Start(r StartRequest) (string, error) {
 	}
 	if repl != "" {
 		args = append(args, "-replace", repl)
+	}
+	if r.UpgradeOld {
+		if !r.AcceptEULA {
+			return "", errors.New("古いワールドを直すには、Minecraft の利用規約 (EULA) への同意が必要です")
+		}
+		args = append(args, "-upgrade-old", "-accept-eula")
 	}
 	args = append(args, r.Source, out)
 	return out, a.run(&job{out: out}, args, false)
@@ -285,6 +299,9 @@ func (a *App) run(j *job, args []string, update bool) error {
 		ok := err == nil && !canceled
 		if !ok && j.out != "" {
 			os.RemoveAll(j.out) // never leave a half-written world behind
+			// the upgraded copy of an old world (the server holding its
+			// files is stopped with the child process)
+			removeAllRetry(j.out + upgradeSuffix)
 		}
 		ev := map[string]any{"t": "exit", "ok": ok, "canceled": canceled, "update": update}
 		if err != nil && !canceled {
@@ -321,6 +338,7 @@ func (a *App) shutdown() {
 	j.cmd.Process.Wait()
 	if j.out != "" {
 		os.RemoveAll(j.out)
+		removeAllRetry(j.out + upgradeSuffix)
 	}
 }
 
@@ -369,4 +387,19 @@ func sanitize(name string) string {
 func fileExists(p string) bool {
 	_, err := os.Stat(p)
 	return err == nil
+}
+
+// upgradeSuffix names the folder next to the output where mcconv keeps the
+// upgraded copy of an old Java world (see cmd/mcconv).
+const upgradeSuffix = ".mcconv-upgrade"
+
+// removeAllRetry removes a folder whose files may be held for a moment by a
+// process that was just stopped.
+func removeAllRetry(dir string) {
+	for i := 0; i < 20; i++ {
+		if err := os.RemoveAll(dir); err == nil {
+			return
+		}
+		time.Sleep(250 * time.Millisecond)
+	}
 }

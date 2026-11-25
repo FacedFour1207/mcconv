@@ -94,8 +94,11 @@ func Run() error {
 	bind("mcCheckReplace", app.CheckReplace)
 	bind("mcPickFolder", func(title, initial string) string { return pickFolder(hwnd, title, initial) })
 	bind("mcOpen", openInExplorer)
+	bind("mcOpenEULA", func() error { return exec.Command("explorer.exe", eulaURL).Start() })
 	bind("mcSetDark", func(dark bool) { setDarkTitleBar(hwnd, dark) })
-	w.SetHtml(indexHTML)
+	store := openUIStore(filepath.Join(os.Getenv("LOCALAPPDATA"), "mcconv", "settings.json"))
+	bind("mcStoreSet", store.Set)
+	w.SetHtml(store.inject(indexHTML))
 	w.Run()
 	app.shutdown()
 	return nil

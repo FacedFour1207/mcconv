@@ -30,6 +30,7 @@ The original world is never modified. Do not open the world in the game while it
 - The selected world's thumbnail and version are shown in the conversion settings.
 - For Bedrock → Java, the Java version to write is chosen in the conversion settings. Java → Bedrock always writes for the newest Bedrock Edition.
 - Worlds newer than mcconv supports show a warning.
+- Old Java worlds (1.21.0 and earlier) are first upgraded with the official server (see below).
 - "Block replacement" (ブロックの置き換え) converts chosen blocks into other blocks (see below).
 - "Advanced settings" (詳細設定) lets you limit the CPU threads and memory used (useful if you want to keep using your PC during a conversion).
 - The game version to write can be chosen in the settings (gear icon).
@@ -44,10 +45,29 @@ For Java Edition, launch that version once in the official launcher first.
 | | Supported |
 |---|---|
 | Worlds written | Java 26.3 (1.21.1 to 26.2 can also be chosen) / the newest Bedrock (the installed game, else 1.26.60) |
-| Worlds read | Java 1.18 to 26.3 / Bedrock 1.18 or later |
+| Worlds read | Java 1.21.1 to 26.3 (1.12.2 to 1.21.0 after an upgrade with the official server, see below) / Bedrock 1.18 or later |
 | OS | Windows 10 / 11 (the window uses WebView2, which is built into Windows 11) |
 
 For newer Java versions, mcconv writes the newest save format it knows (26.2), and the game upgrades the world to its own format when it opens it.
+
+### Reading old Java worlds
+
+When a Java world saved by 1.21.0 or earlier (1.12.2, for example) is selected, the conversion settings show a notice.
+After you accept the Minecraft EULA and start, mcconv:
+
+1. downloads the official Minecraft server (Java 26.3, about 60 MB) from Mojang (once; kept in `mcconv-data/server`),
+2. looks for Java; if neither the official launcher's nor an installed Java is found, it downloads Mojang's official Java runtime (about 100 MB, once; kept in `mcconv-data/runtime`),
+3. copies the world next to the output folder (`<output>.mcconv-upgrade`),
+4. upgrades the copy with the server's `--forceUpgrade` (the game's own upgrade, so blocks, chest contents, signs, mobs and so on keep their data; the server only listens on this PC and is stopped when done),
+5. converts the upgraded copy as usual and deletes it at the end.
+
+- The original world is not changed.
+- Large worlds take time and load the PC, and need about as much free disk space as the world.
+- Worlds from 1.17 or earlier have no terrain below y 0 (the bedrock floor at y 0 stays the bottom, as in the original).
+- Blocks and items added by mods (Forge, ...) are lost with the official server.
+- Tested with 1.12.2, 1.16.5 and 1.20.4. Older worlds may work the same way but are not tested.
+
+On the command line, add `-upgrade-old -accept-eula` (`-accept-eula` means you accept the EULA). Without them, old worlds stop with an error.
 
 ### Writing older Java versions
 
@@ -114,6 +134,8 @@ The edition of the input is detected automatically and it is converted to the ot
 | `-v` | Show the time taken by each step |
 | `-java-version 1.21.1` | Java version to write (1.21.1 or later; default: `versions.json`, else the tables' version) |
 | `-replace from=to,from=to` | Replace blocks (e.g. `barrier=invisible_bedrock`; source edition ID = target edition ID; add-on / mod IDs with states also work: `stone=addon:custom_block[stage=1]`) |
+| `-upgrade-old` | Upgrade Java worlds from 1.21.0 and earlier with the official server first (see above) |
+| `-accept-eula` | Accept the Minecraft [EULA](https://aka.ms/MinecraftEULA) (needed for `-upgrade-old`) |
 | `-data DIR` | Folder for settings and updated data (default: `mcconv-data` next to the exe) |
 
 ### Settings files (mcconv-data folder)
@@ -121,6 +143,7 @@ The edition of the input is detected automatically and it is converted to the ot
 - `versions.json` the Java version the command line writes (the window asks for each conversion; Bedrock is always written for the newest version)
 - `tables.json.gz` updated mapping tables (created by `update-data`; the built-in tables are used if it is missing)
 - `bedrock_entities.json` Bedrock entity definitions (read from the installed Bedrock Edition)
+- `server/`, `runtime/` the official server and Java downloaded to upgrade old worlds (can be deleted; they are downloaded again when needed)
 - `overrides.json` your own ID mappings, for blocks and other IDs missing from the tables:
   ```json
   {
@@ -216,7 +239,7 @@ The built-in mapping tables (`internal/translate/data/tables.json.gz`) are made 
 - `internal/convert` the parallel conversion, block entities, items, entities, leaf distance and similar calculations
 - `internal/java`, `internal/bedrock` reading and writing chunks and level.dat for each edition
 - `internal/nbt`, `internal/leveldb`, `internal/anvil`, `internal/zfast` NBT, LevelDB, region files, fast deflate decoding
-- `internal/update` `update-data` (downloading and building the tables)
+- `internal/update` `update-data` (downloading and building the tables), upgrading old Java worlds with the official server
 - `tools/` development tools: building the tables (`gendata`), comparing worlds (`compare`), printing NBT (`nbtdump`) and more
 
 ## Data sources
@@ -231,6 +254,7 @@ The built-in mapping tables (`internal/translate/data/tables.json.gz`) are made 
 | Blocks, items, biomes and entities of older Java versions (1.21.1 to 26.1) | [PrismarineJS/minecraft-data](https://github.com/PrismarineJS/minecraft-data) | MIT |
 
 Bedrock entity definitions are not bundled; they are read from the installed Bedrock Edition at run time.
+The official server and Java used to upgrade old worlds are not bundled either; they are downloaded from Mojang when needed.
 
 ## License
 

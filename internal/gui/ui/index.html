@@ -5,10 +5,24 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>mcconv</title>
 <script>
+// Saved settings. In the app the page has no origin and WebView2 does not
+// keep localStorage, so the app puts the saved values here and saves
+// through mcStoreSet. Opened as a file (tests), localStorage is used.
+var mcStorage = (function () {
+  var m = /*MCCONV_STORE*/null;
+  if (!m) {
+    try { localStorage.getItem('x'); return localStorage; } catch (e) {}
+    m = {};
+  }
+  return {
+    getItem: function (k) { return Object.prototype.hasOwnProperty.call(m, k) ? m[k] : null; },
+    setItem: function (k, v) { m[k] = String(v); if (window.mcStoreSet) window.mcStoreSet(k, String(v)).catch(function () {}); }
+  };
+})();
 // apply the saved theme before the page is drawn
 (function () {
   var p = 'system';
-  try { p = localStorage.getItem('mcconv.theme') || 'system'; } catch (e) {}
+  try { p = mcStorage.getItem('mcconv.theme') || 'system'; } catch (e) {}
   var dark = p === 'dark' || (p === 'system' && matchMedia('(prefers-color-scheme: dark)').matches);
   document.documentElement.setAttribute('data-theme', dark ? 'dark' : 'light');
 })();
@@ -377,6 +391,12 @@ select.input option:disabled { color: var(--text-3); }
 .pill.notice .icon { width: 15px; height: 15px; }
 .warnbox { background: var(--danger-soft); color: var(--danger); border-radius: 12px; padding: 11px 13px; font-size: 12.5px; line-height: 1.6; display: flex; flex-direction: column; gap: 8px; }
 .warnbox b { font-weight: 700; }
+.infobox { background: var(--bedrock-soft); color: var(--text); border-radius: 12px; padding: 11px 13px; font-size: 12.5px; line-height: 1.6; display: flex; flex-direction: column; gap: 8px; }
+.infobox b { font-weight: 700; }
+.infobox ul { margin: 0; padding-left: 18px; color: var(--text-2); }
+.infobox .eula { display: flex; align-items: center; gap: 8px; font-weight: 600; cursor: pointer; }
+.infobox .eula input { width: 16px; height: 16px; accent-color: var(--accent); margin: 0; }
+.linkbtn { align-self: flex-start; background: none; border: 0; padding: 0; color: var(--bedrock); font: inherit; font-size: 12px; text-decoration: underline; cursor: pointer; }
 .warnbox .switch .txt { color: var(--danger); font-size: 12.5px; }
 
 .disabled-overlay { pointer-events: none; opacity: .5; filter: saturate(.6); transition: opacity .2s; }
@@ -700,13 +720,19 @@ function tooNew(w) {
   const r = v => v.split('.').map(Number).map((n, i) => i === 2 ? Math.floor(n / 10) : n).slice(0, 3).join('.');
   return olderVer(r(l.tablesBedrock), r(w.version));
 }
+// a Java world older than the oldest format mcconv reads (1.21.1): a copy
+// is upgraded with the official server first (0 = before 1.9)
+function isOld(w) {
+  const l = S.vlists;
+  return !!(w && l && l.minJavaDV && w.edition === 'java' && w.dataVersion < l.minJavaDV);
+}
 function verLabel(e, v) { return v ? `${e === 'java' ? 'Java' : '統合版'} ${esc(v)}` : ''; }
 
 function flowHTML() {
   const w = S.sel;
   const src = w ? w.edition : null, dst = w ? (w.edition === 'java' ? 'bedrock' : 'java') : null;
   const tile = e => `<div class="tile ${e || 'none'}">${w && w.icon ? `<img src="${w.icon}" alt=""><span class="tag ${e}">${e === 'java' ? 'JE' : 'BE'}</span>` : e === 'java' ? 'JE' : e === 'bedrock' ? 'BE' : '?'}</div>`;
-  const srcVer = w ? `<div class="ver ${tooNew(w) ? 'warn' : ''}">${verLabel(src, w.version) || 'バージョン不明'}</div>` : '';
+  const srcVer = w ? `<div class="ver ${tooNew(w) || isOld(w) ? 'warn' : ''}">${verLabel(src, w.version) || (isOld(w) ? 'Java 1.8 以前' : 'バージョン不明')}</div>` : '';
   const dstV = dst === 'java' ? javaTarget() : dst === 'bedrock' ? bedrockTarget() : '';
   const dstVer = w ? `<div class="ver">${verLabel(dst, dstV) || '—'}</div>` : '';
   return `<div class="flow">
@@ -728,6 +754,22 @@ function newerHTML(w) {
   </div>`;
 }
 
+function oldHTML(w) {
+  if (!isOld(w)) return '';
+  const l = S.vlists;
+  return `<div class="infobox">
+    <div><b>このワールド (${verLabel('java', w.version) || 'Java 1.8 以前'}) は古い形式です。</b><br>
+    変換の前に、Minecraft 公式のサーバー (Java ${esc(l.upgradeVer)}) で、ワールドの<b>コピー</b>を新しい形式に直します。元のワールドは変更しません。直したコピーは、変換が終わると消します。</div>
+    <ul>
+      <li>初めてのときは、公式サーバー (約 60MB) をダウンロードします。Java が見つからないときは、公式の Java (約 100MB) もダウンロードします。</li>
+      <li>大きなワールドは時間がかかり、PC に負荷がかかります。ワールドと同じくらいの空き容量が必要です。</li>
+      <li>MOD で追加したブロックやアイテムは消えます。</li>
+    </ul>
+    <label class="eula"><input type="checkbox" id="f-eula" ${S.eula ? 'checked' : ''}><span>Minecraft の利用規約 (EULA) に同意します</span></label>
+    <button class="linkbtn" id="btn-eula">利用規約を読む</button>
+  </div>`;
+}
+
 function renderSide() {
   const side = $('#side');
   closePicker();
@@ -746,7 +788,7 @@ function renderSide() {
   const jt = S.sel.edition === 'bedrock' ? javaTargets() : [];
   // Java format changes can lose whole chunks (26.3), so Java needs a confirmation
   const blocked = startBlocked();
-  side.innerHTML = flowHTML() + newerHTML(S.sel) + `
+  side.innerHTML = flowHTML() + newerHTML(S.sel) + oldHTML(S.sel) + `
     ${S.sel.edition === 'bedrock' ? `<div class="field"><label for="f-jver">書き出す Java版 のバージョン</label>
       <select class="input" id="f-jver">${jt.length ? jt.map(o => `<option value="${esc(o.name)}" ${o.name === javaTarget() ? 'selected' : ''}>${esc(o.name)}${o.installed ? ' (インストール済み)' : ''}${o.name === S.vlists.tablesJava ? ' ★ 最新' : ''}</option>`).join('') : '<option>読み込み中…</option>'}</select>
       <div class="hint">遊ぶ Java版 と同じバージョンを選んでください。古いバージョンにないブロックやアイテムは、似たものに置き換わります (1.21.1 まで選べます)。</div></div>`
@@ -783,6 +825,10 @@ function renderSide() {
   if (gu) gu.onclick = () => openDrawer(true);
   const fc = $('#f-force');
   if (fc) fc.onchange = e => { S.force = e.target.checked; updateStartBtn(); };
+  const fe = $('#f-eula');
+  if (fe) fe.onchange = e => { S.eula = e.target.checked; savePrefs(); updateStartBtn(); };
+  const be = $('#btn-eula');
+  if (be) be.onclick = () => { if (window.mcOpenEULA) mcOpenEULA(); };
   $('#f-name').oninput = e => { S.name = e.target.value; side.querySelectorAll('.flow .nm')[1].textContent = S.name || S.sel.name; };
   $('#f-dest').onchange = async e => {
     if (e.target.value === '__pick') {
@@ -818,7 +864,7 @@ const shortID = s => s.trim().toLowerCase().replace(/^minecraft:/, '');
 // an id outside "minecraft:" (an add-on or mod block)
 const isCustomID = s => { const m = /^\s*([^:[\s]+)\s*:/.exec(s); return !!m && m[1].toLowerCase() !== 'minecraft'; };
 function startBlocked() {
-  return (tooNew(S.sel) && S.sel.edition === 'java' && !S.force) || replErrs().some(Boolean);
+  return (tooNew(S.sel) && S.sel.edition === 'java' && !S.force) || (isOld(S.sel) && !S.eula) || replErrs().some(Boolean);
 }
 function updateStartBtn() { const b = $('#btn-start'); if (b) b.disabled = startBlocked(); }
 function replCount() { return replRows().filter(r => r.from.trim() && r.to.trim()).length; }
@@ -1042,10 +1088,11 @@ async function start() {
     workers: S.workers, compression: S.comp, allChunks: S.allChunks, memoryMB: S.mem,
     javaVersion: w.edition === 'bedrock' ? javaTarget() : '',
     replace: replRows().filter(r => r.from.trim() || r.to.trim()).map(r => ({ from: r.from.trim(), to: r.to.trim() })),
+    upgradeOld: isOld(w), acceptEula: isOld(w) && !!S.eula,
   };
   try {
     const out = await mcStart(req);
-    S.job = { out, req, from: w, start: performance.now(), done: 0, total: -1, rate: 0, samples: [], phase: '準備しています…', log: [], stats: null, err: '' };
+    S.job = { out, req, from: w, start: performance.now(), done: 0, total: -1, rate: 0, samples: [], phase: '準備しています…', log: [], stats: null, err: '', step: null };
     S.view = 'running';
     renderSide();
   } catch (e) { toast(errText(e), true); }
@@ -1053,7 +1100,8 @@ async function start() {
 
 function renderRunning(full) {
   const j = S.job; const side = $('#side');
-  const pct = j.total > 0 ? Math.min(100, j.done * 100 / j.total) : null;
+  const st = j.total < 0 && j.step ? j.step : null; // upgrading an old world
+  const pct = st ? (st.n > 0 ? Math.min(100, st.d * 100 / st.n) : null) : j.total > 0 ? Math.min(100, j.done * 100 / j.total) : null;
   const elapsed = (performance.now() - j.start) / 1000;
   const eta = pct != null && j.rate > 0 ? (j.total - j.done) / j.rate : NaN;
   const C = 2 * Math.PI * 82;
@@ -1083,13 +1131,20 @@ function renderRunning(full) {
   ring.classList.toggle('indet', pct == null);
   fg.style.strokeDashoffset = pct == null ? C * .75 : C * (1 - pct / 100);
   $('#pct').textContent = pct == null ? fmtN(j.done) : Math.floor(pct) + '%';
-  $('#cap').textContent = pct == null ? 'チャンク' : `${fmtN(j.done)} / ${fmtN(j.total)}`;
+  $('#cap').textContent = st ? stepCap(st) : pct == null ? 'チャンク' : `${fmtN(j.done)} / ${fmtN(j.total)}`;
   $('#pct').style.fontSize = pct == null && j.done >= 1e6 ? '30px' : '';
   $('#phase').textContent = j.phase;
   $('#st-done').textContent = fmtN(j.done);
   $('#st-rate').innerHTML = j.rate ? `${fmtN(Math.round(j.rate))} <small>チャンク/秒</small>` : '— <small>チャンク/秒</small>';
   $('#st-el').textContent = fmtDur(elapsed);
   $('#st-eta').textContent = pct == null ? '—' : fmtDur(eta);
+}
+const STEPS = { server: '公式サーバーをダウンロードしています…', java: '公式の Java をダウンロードしています…', copy: 'ワールドをコピーしています…', upgrade: '古い形式のワールドを新しい形式に直しています…' };
+function stepCap(st) {
+  if (!st.n) return '';
+  if (st.s === 'upgrade') return `${fmtN(st.d)} / ${fmtN(st.n)} チャンク`;
+  const mb = v => (v / 1048576).toFixed(v < 10485760 ? 1 : 0);
+  return `${mb(st.d)} / ${mb(st.n)} MB`;
 }
 function logLine(l) {
   const cls = /^(warning|error)|failed|panic/i.test(l) ? (/^error|panic/i.test(l) ? 'e' : 'w') : '';
@@ -1101,14 +1156,15 @@ function renderResult() {
   const j = S.job, side = $('#side');
   const st = j.stats || {};
   if (S.view === 'done') {
-    const secs = (st.ms || 0) / 1000;
+    const secs = (st.ms || 0) / 1000; // converting chunks only (for the speed)
+    const took = j.end && j.start ? (j.end - j.start) / 1000 : secs; // the whole job, upgrade included
     $('#side-title').textContent = '完了'; $('#side-sub').textContent = '変換が終わりました';
     side.innerHTML = `<div class="prog">
       <div class="result"><div class="big-icon">${icon('check')}</div><h3>変換が完了しました</h3>
         <p>「${esc(j.req.name)}」を ${ED[j.req.target]} のワールドとして保存しました。</p></div>
       <div class="stats">
         <div class="stat"><div class="k">変換したチャンク</div><div class="v">${fmtN(st.chunks)}</div></div>
-        <div class="stat"><div class="k">かかった時間</div><div class="v">${fmtDur(secs)}</div></div>
+        <div class="stat"><div class="k">かかった時間</div><div class="v">${fmtDur(took)}</div></div>
         <div class="stat"><div class="k">平均速度</div><div class="v">${secs > 0 ? fmtN(Math.round((st.chunks + st.skipped) / secs)) : '—'} <small>チャンク/秒</small></div></div>
         <div class="stat"><div class="k">ブロックエンティティ</div><div class="v">${fmtN(st.blockEntities)}</div></div>
       </div>
@@ -1152,7 +1208,10 @@ window.__mc = ev => {
       { const m = /\]\s*(open|convert|finish)/.exec(ev.m);
         if (/open .*region files|open database/.test(ev.m)) j.phase = 'チャンクを変換しています…';
         else if (/convert \d+ chunks/.test(ev.m)) j.phase = '仕上げています…';
-        else if (/^target:/.test(ev.m) && j.done === 0) j.phase = 'ワールドを読み込んでいます…'; }
+        else if (/^target:/.test(ev.m) && j.done === 0) j.phase = 'ワールドを読み込んでいます…';
+        else if (/^upgrade finished/.test(ev.m)) { j.step = null; j.phase = '公式サーバーを終了しています…'; }
+        else if (/^upgrading the world/.test(ev.m)) { j.step = { s: 'upgrade', d: 0, n: 0 }; j.phase = '公式サーバーを起動しています…'; }
+        else if (/^this world was saved by an old/.test(ev.m)) j.phase = '古い形式のワールドを直す準備をしています…'; }
       { const el = $('#log'); if (el) { el.insertAdjacentHTML('beforeend', logLine(ev.m)); el.scrollTop = el.scrollHeight; } }
       break;
     case 'p': if (!j) break;
@@ -1161,9 +1220,13 @@ window.__mc = ev => {
         const a = j.samples[0], b = j.samples[j.samples.length - 1];
         if (b[0] - a[0] > 300) j.rate = (b[1] - a[1]) / ((b[0] - a[0]) / 1000);
         j.done = ev.d; j.total = ev.n;
-        if (j.done > 0 && /準備|読み込/.test(j.phase)) j.phase = 'チャンクを変換しています…'; }
+        j.step = null;
+        if (j.done > 0 && /準備|読み込|公式サーバー/.test(j.phase)) j.phase = 'チャンクを変換しています…'; }
       break;
-    case 'done': if (j) { j.stats = ev; j.done = ev.chunks; } break;
+    case 'step': if (!j) break;
+      j.step = { s: ev.s, d: ev.d, n: ev.n }; j.phase = STEPS[ev.s] || j.phase;
+      break;
+    case 'done': if (j) { j.stats = ev; j.done = ev.chunks; j.end = performance.now(); } break;
     case 'error': if (j) j.err = ev.m; break;
     case 'exit':
       if (ev.update) { updateFinished(ev); break; }
@@ -1196,8 +1259,8 @@ $('#pill-update').onclick = () => openDrawer(true);
 
 /* ---------- theme ---------- */
 const darkQuery = matchMedia('(prefers-color-scheme: dark)');
-function themePref() { try { return localStorage.getItem('mcconv.theme') || 'system'; } catch (e) { return 'system'; } }
-function setThemePref(p) { try { localStorage.setItem('mcconv.theme', p); } catch (e) {} applyTheme(); }
+function themePref() { try { return mcStorage.getItem('mcconv.theme') || 'system'; } catch (e) { return 'system'; } }
+function setThemePref(p) { try { mcStorage.setItem('mcconv.theme', p); } catch (e) {} applyTheme(); }
 function applyTheme() {
   const p = themePref();
   const dark = p === 'dark' || (p === 'system' && darkQuery.matches);
@@ -1213,16 +1276,17 @@ document.querySelectorAll('#theme-seg button').forEach(b => b.onclick = () => se
 
 /* ---------- remembered conversion settings ---------- */
 function savePrefs() {
-  try { localStorage.setItem('mcconv.prefs', JSON.stringify({ workers: S.workers, comp: S.comp, mem: S.mem, allChunks: S.allChunks, dims: [...S.dims], javaVer: S.javaVer, repl: S.repl })); } catch (e) {}
+  try { mcStorage.setItem('mcconv.prefs', JSON.stringify({ workers: S.workers, comp: S.comp, mem: S.mem, allChunks: S.allChunks, dims: [...S.dims], javaVer: S.javaVer, repl: S.repl, eula: !!S.eula })); } catch (e) {}
 }
 function loadPrefs() {
   let p = null;
-  try { p = JSON.parse(localStorage.getItem('mcconv.prefs') || 'null'); } catch (e) {}
+  try { p = JSON.parse(mcStorage.getItem('mcconv.prefs') || 'null'); } catch (e) {}
   if (!p) return;
   if (p.workers >= 1 && p.workers <= S.maxWorkers) S.workers = p.workers;
   if (COMP.some(c => c[0] === p.comp)) S.comp = p.comp;
   if (p.mem >= 0 && (!S.totalMem || p.mem < S.totalMem)) S.mem = p.mem;
   S.allChunks = !!p.allChunks;
+  S.eula = !!p.eula;
   if (typeof p.javaVer === 'string') S.javaVer = p.javaVer;
   if (p.repl) for (const k of ['bedrock', 'java']) {
     if (Array.isArray(p.repl[k])) S.repl[k] = p.repl[k].filter(r => r && typeof r.from === 'string' && typeof r.to === 'string').map(r => ({ from: r.from, to: r.to }));

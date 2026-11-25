@@ -17,6 +17,7 @@ import (
 	"mcconv/internal/config"
 	"mcconv/internal/convert"
 	"mcconv/internal/gui"
+	"mcconv/internal/java"
 	"mcconv/internal/translate"
 	"mcconv/internal/update"
 	"mcconv/internal/world"
@@ -51,6 +52,8 @@ func main() {
 		jsonOut    = flag.Bool("progress-json", false, "report progress as JSON lines on stdout (used by the GUI)")
 		memMB      = flag.Int("mem", 0, "memory limit in MB (0 = none; lower uses less RAM but converts slower)")
 		javaVer    = flag.String("java-version", "", "Java version to write, 1.21.1 or newer (default: versions.json, else the tables' version)")
+		upgradeOld = flag.Bool("upgrade-old", false, "Java worlds older than 1.21.1: first upgrade a copy with the official Minecraft server (--forceUpgrade; downloads the server, and Java if none is found). Needs -accept-eula")
+		acceptEULA = flag.Bool("accept-eula", false, "accept the Minecraft EULA (https://aka.ms/MinecraftEULA), needed to run the official server for -upgrade-old")
 		replace    = flag.String("replace", "", "replace blocks: from=to,from=to (source edition id = target edition id, e.g. barrier=invisible_bedrock; add-on / mod ids may have states: stone=addon:custom_block[stage=1])")
 	)
 	flag.Usage = func() {
@@ -153,8 +156,19 @@ func main() {
 			fatal(fmt.Errorf("unknown dimension %q", d))
 		}
 	}
+	if from == "java" {
+		var upErr error
+		in, upErr = upgradeIfOld(in, out, *upgradeOld, *acceptEULA, cfg.Dir, *jsonOut, *quiet)
+		if upErr != nil {
+			if *jsonOut {
+				jsonFatal(upErr)
+			}
+			fatal(upErr)
+		}
+	}
 	if *jsonOut {
 		runJSON(in, out, from, opts)
+		cleanup()
 		return
 	}
 	var mu sync.Mutex
@@ -198,6 +212,7 @@ func main() {
 	if err != nil {
 		fatal(err)
 	}
+	cleanup()
 	fmt.Fprintf(os.Stderr, "done in %v: %d chunks converted, %d skipped, %d failed, %d block entities, %d entities\n",
 		st.Duration.Round(time.Millisecond), st.Chunks, st.Skipped, st.Failed, st.BlockEntities, st.Entities)
 	if st.TranslateErrs > 0 {
@@ -206,8 +221,19 @@ func main() {
 }
 
 func fatal(err error) {
+	cleanup()
 	fmt.Fprintln(os.Stderr, "error:", err)
 	os.Exit(1)
+}
+
+// cleanups run before mcconv exits (the upgraded copy of an old world).
+var cleanups []func()
+
+func cleanup() {
+	for _, f := range cleanups {
+		f()
+	}
+	cleanups = nil
 }
 
 func updateData(args []string) {
@@ -262,8 +288,101 @@ func runJSON(in, out, from string, opts convert.Options) {
 	}
 	if err != nil {
 		emit(map[string]any{"t": "error", "m": err.Error()})
+		cleanup()
 		os.Exit(1)
 	}
 	emit(map[string]any{"t": "done", "chunks": st.Chunks, "skipped": st.Skipped, "failed": st.Failed,
 		"blockEntities": st.BlockEntities, "entities": st.Entities, "ms": st.Duration.Milliseconds(), "replaced": st.Replaced})
+}
+
+// jsonEmit writes one JSON event line (-progress-json).
+var jsonMu sync.Mutex
+
+func jsonEmit(v map[string]any) {
+	jsonMu.Lock()
+	defer jsonMu.Unlock()
+	json.NewEncoder(os.Stdout).Encode(v)
+}
+
+func jsonFatal(err error) {
+	jsonEmit(map[string]any{"t": "error", "m": err.Error()})
+	cleanup()
+	os.Exit(1)
+}
+
+// upgradeIfOld returns the world to convert: in itself, or for a Java world
+// older than the oldest format mcconv reads (1.21.1), a copy upgraded by the
+// official Minecraft server next to the output (removed by cleanup).
+func upgradeIfOld(in, out string, allowed, eula bool, dataDir string, jsonOut, quiet bool) (string, error) {
+	w, err := java.Open(in)
+	if err != nil {
+		return in, nil // reported by the conversion
+	}
+	dv := w.ReadDataVersion() // 0: before 1.9 (no DataVersion)
+	if dv >= translate.MinJavaDataVersion {
+		return in, nil
+	}
+	ver := "before 1.9"
+	if dv > 0 {
+		ver = fmt.Sprintf("DataVersion %d", dv)
+	}
+	if !allowed {
+		return "", fmt.Errorf("this world was saved by an old Java Edition (%s); mcconv reads 1.21.1 and newer directly. Add -upgrade-old -accept-eula to upgrade a copy with the official Minecraft server first (the original world is not changed)", ver)
+	}
+	if !eula {
+		return "", fmt.Errorf("upgrading the world runs the official Minecraft server, which needs the Minecraft EULA (https://aka.ms/MinecraftEULA): add -accept-eula if you accept it")
+	}
+	if dataDir == "" {
+		dataDir = config.DefaultDir()
+	}
+	work := strings.TrimRight(out, `/\`) + ".mcconv-upgrade"
+	os.RemoveAll(work) // left by a canceled run
+	cleanups = append(cleanups, func() { removeAllRetry(work) })
+	logf := func(format string, args ...any) {
+		if jsonOut {
+			jsonEmit(map[string]any{"t": "log", "m": fmt.Sprintf(format, args...)})
+		} else {
+			fmt.Fprintf(os.Stderr, format+"\n", args...)
+		}
+	}
+	logf("this world was saved by an old Java Edition (%s): upgrading a copy with the official Minecraft %s server first", ver, java.ReadFormatName)
+	var last time.Time
+	lastStep := ""
+	progress := func(step string, done, total int64) {
+		if time.Since(last) < 150*time.Millisecond && done != total && step == lastStep {
+			return
+		}
+		last, lastStep = time.Now(), step
+		if jsonOut {
+			jsonEmit(map[string]any{"t": "step", "s": step, "d": done, "n": total})
+		} else if !quiet {
+			unit := "MB"
+			d, n := float64(done)/(1<<20), float64(total)/(1<<20)
+			if step == "upgrade" {
+				unit, d, n = "chunks", float64(done), float64(total)
+			}
+			fmt.Fprintf(os.Stderr, "\r%s: %.0f / %.0f %s   ", step, d, n, unit)
+			if done == total {
+				fmt.Fprint(os.Stderr, "\n")
+			}
+		}
+	}
+	dir, err := update.UpgradeWorld(in, update.UpgradeOptions{
+		DataDir: dataDir, Version: java.ReadFormatName, WorkDir: work, Logf: logf, Progress: progress,
+	})
+	if err != nil {
+		return "", err
+	}
+	return dir, nil
+}
+
+// removeAllRetry removes a folder; files may still be held for a moment by
+// the server process that just exited.
+func removeAllRetry(dir string) {
+	for i := 0; i < 20; i++ {
+		if err := os.RemoveAll(dir); err == nil {
+			return
+		}
+		time.Sleep(250 * time.Millisecond)
+	}
 }

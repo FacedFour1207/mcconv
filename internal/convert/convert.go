@@ -362,7 +362,12 @@ func (w *j2bWorker) convert(t chunkRef, stream *leveldb.TableStream) (int, error
 		return 0, err
 	}
 	status := res.Status
-	if !w.opts.IncludeUnfinished && status != "" && status != "minecraft:full" && status != "full" {
+	if res.RetrogenStatus != "" {
+		// upgraded pre-1.18 chunk: complete above y 0 whatever stage the
+		// game reached building the terrain below it
+		status = res.RetrogenStatus
+	}
+	if !w.opts.IncludeUnfinished && !finishedStatus(status) {
 		ch.ReleaseTo(&w.secs)
 		return 0, java.ErrSkip
 	}
@@ -864,6 +869,17 @@ func newerBedrock(v []int32, tables string) bool {
 		if w != t[i] {
 			return w > t[i]
 		}
+	}
+	return false
+}
+
+// finishedStatus reports whether a Java chunk status means fully generated
+// terrain. "spawn" is the last step before "full" (only the first mobs are
+// missing); chunks of old worlds (1.12 and older) upgraded by the game get it.
+func finishedStatus(s string) bool {
+	switch s {
+	case "", "full", "minecraft:full", "spawn", "minecraft:spawn":
+		return true
 	}
 	return false
 }
