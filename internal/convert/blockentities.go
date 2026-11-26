@@ -17,7 +17,8 @@ type beConverter struct {
 	t         *translate.Tables
 	items     *itemConverter
 	toBedrock bool
-	jf        *javaFormat // Bedrock -> Java: the target release
+	jf        *javaFormat      // Bedrock -> Java: the target release
+	ents      *entityConverter // bees in beehives
 }
 
 // Java block entity id -> Bedrock block entity id.
@@ -217,6 +218,12 @@ func (c *beConverter) toBedrockBE(java *translate.Block, be *translate.BlockEnti
 				o["item"] = conv
 			}
 		}
+	case "beehive":
+		c.beesToBedrock(s, o, pos)
+	case "trial_spawner":
+		trialSpawnerToBedrock(s, o)
+	case "vault":
+		c.vaultToBedrock(s, o)
 	}
 	return &translate.BlockEntity{BaseName: bid, NBT: o}
 }
@@ -353,6 +360,12 @@ func (c *beConverter) toJavaBE(java *translate.Block, be *translate.BlockEntity)
 				o["item"] = conv
 			}
 		}
+	case "beehive":
+		c.beesToJava(s, o)
+	case "trial_spawner":
+		c.trialSpawnerToJava(s, o)
+	case "vault":
+		c.vaultToJava(s, o)
 	}
 	return &translate.BlockEntity{Namespace: "minecraft", BaseName: id, NBT: o}
 }

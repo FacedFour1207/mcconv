@@ -103,7 +103,7 @@ On the command line, use `-replace barrier=invisible_bedrock,chest=barrel` (comm
 ## What is converted
 
 - Blocks (every state, including waterlogged blocks) and biomes
-- Block entities: chests (including double chests), sign text, banner patterns, bed colors, flower pots, note blocks, heads, spawners, container contents, loot tables, custom names and more
+- Block entities: chests (including double chests), sign text, banner patterns, bed colors, flower pots, note blocks, heads, spawners, bees in beehives, trial spawner and vault settings, container contents, loot tables, custom names and more
 - Items: count, durability, enchantments, potions, names and lore, dye colors, shulker box contents, books
 - Entities: mobs, dropped items, minecarts, boats, armor stands, falling blocks, paintings, item frames
 - level.dat: name, seed, spawn point, game mode, difficulty, time, weather, main game rules, superflat settings

@@ -153,6 +153,7 @@ func JavaToBedrock(srcDir, dstDir string, opts Options) (*Stats, error) {
 	jc := &java.Codec{Complete: data.CompleteJavaBlock}
 	bcodec := &bedrock.Codec{Biomes: data, BlockVersion: bedrockBlockVersion(opts, data)}
 	ec := newEntityConverter(data, items, bc)
+	bc.be.ents = ec
 	st := &Stats{}
 
 	// Every chunk of the world, sorted in Bedrock key order. Workers convert
@@ -504,6 +505,7 @@ func BedrockToJava(srcDir, dstDir string, opts Options) (*Stats, error) {
 	jc := &java.Codec{DataVersion: int32(chunkDV), Target: target}
 	ec := newEntityConverter(data, items, bc)
 	ec.jf = jf
+	bc.be.ents = ec
 	lf := &leafFixer{bc: bc}
 	st := &Stats{}
 	wantDim := map[world.Dimension]bool{}
