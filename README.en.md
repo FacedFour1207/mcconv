@@ -171,8 +171,8 @@ The edition of the input is detected automatically and it is converted to the ot
 
 | World | Java → Bedrock | Bedrock → Java | Amulet, estimated \*1 |
 |---|---:|---:|---:|
-| earth_1-500 (6 GB, 487,424 chunks) | **about 25 s** | **about 33 s** | about 3 hours |
-| Whole Earth (112 GB, 11,063,296 chunks) | **about 14.5 min** | **about 15 min** \*2 | about 2.5–3 days |
+| Part of earth_1-500 (6 GB, 487,424 chunks) | **about 25 s** | **about 33 s** | about 3 hours |
+| All of earth_1-500 (112 GB, 11,063,296 chunks) | **about 14.5 min** | **about 15 min** \*2 | about 2.5–3 days |
 
 - Converts about **20,000 chunks per second** (Java → Bedrock). It uses every CPU core and stays almost as fast as worlds get bigger.
 - Memory use is usually 1.5–6.5 GB. Setting a memory limit in "Advanced settings" keeps it around 1.5 GB (conversion becomes somewhat slower).
@@ -186,7 +186,7 @@ Converted worlds are checked not only by mcconv itself but by loading them in th
 
 | Check | Result |
 |---|---|
-| Loaded in Bedrock Dedicated Server 1.26.52 | Test world and earth_1-500 load and shut down without errors |
+| Loaded in Bedrock Dedicated Server 1.26.52 | Test world and the 6 GB part of earth_1-500 load and shut down without errors |
 | Loaded in the Java server (26.2) | Test world and earth_1-500: 0 warnings |
 | Round trip Java → Bedrock → Java | 99.92% of 72.15 million blocks match the original. The differences are only information Bedrock lacks (`cave_air` becomes normal air, leaf distance is recalculated, the facing of buttons on the floor) |
 | Compared with Amulet's output (Bedrock → Java) | 99.99% match. The difference is leaf distance (Amulet writes 7, the value that makes leaves decay; mcconv calculates it from nearby logs) |
